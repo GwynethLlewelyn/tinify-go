@@ -3,7 +3,7 @@ package Tinify
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -34,7 +34,7 @@ func (c *Client) Request(method string, url string, body interface{}) (response 
 	switch body.(type) {
 	case []byte:
 		if len(body.([]byte)) > 0 {
-			req.Body = ioutil.NopCloser(bytes.NewReader(body.([]byte)))
+			req.Body = io.NopCloser(bytes.NewReader(body.([]byte)))
 		}
 	case map[string]interface{}:
 		if len(body.(map[string]interface{})) > 0 {
@@ -43,7 +43,7 @@ func (c *Client) Request(method string, url string, body interface{}) (response 
 				err = err2
 				return
 			}
-			req.Body = ioutil.NopCloser(bytes.NewReader(body2))
+			req.Body = io.NopCloser(bytes.NewReader(body2))
 		}
 		req.Header["Content-Type"] = []string{"application/json"}
 	}

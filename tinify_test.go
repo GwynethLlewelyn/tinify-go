@@ -3,7 +3,8 @@ package main
 import (
 	"testing"
 
-	"io/ioutil"
+//	"io/ioutil"
+	"os"
 
 	"github.com/gwpp/tinify-go/tinify"
 )
@@ -29,7 +30,7 @@ func TestCompressFromFile(t *testing.T) {
 func TestCompressFromBuffer(t *testing.T) {
 	Tinify.SetKey(Key)
 
-	buf, err := ioutil.ReadFile("./test.jpg")
+	buf, err := os.ReadFile("./test.jpg")
 	if err != nil {
 		t.Error(err)
 		return
@@ -94,7 +95,7 @@ func TestResizeFromFile(t *testing.T) {
 func TestResizeFromBuffer(t *testing.T) {
 	Tinify.SetKey(Key)
 
-	buf, err := ioutil.ReadFile("./test.jpg")
+	buf, err := os.ReadFile("./test.jpg")
 	if err != nil {
 		t.Error(err)
 		return

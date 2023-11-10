@@ -2,7 +2,7 @@ package Tinify
 
 import (
 	"errors"
-	"io/ioutil"
+	"os"
 	"net/http"
 )
 
@@ -38,7 +38,7 @@ func newSource(url string, commands map[string]interface{}) *Source {
 }
 
 func FromFile(path string) (s *Source, err error) {
-	buf, err := ioutil.ReadFile(path)
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		return
 	}
@@ -125,7 +125,7 @@ func (s *Source) toResult() (r *Result, err error) {
 		return
 	}
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := os.ReadAll(response.Body)
 	if err != nil {
 		return
 	}

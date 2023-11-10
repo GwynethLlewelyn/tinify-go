@@ -1,7 +1,6 @@
 package Tinify
 
 import (
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -33,7 +32,7 @@ func (r *Result) ToFile(path string) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(path, r.data, os.ModePerm)
+	err = os.WriteFile(path, r.data, os.ModePerm)
 	return err
 }
 
