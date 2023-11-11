@@ -2,6 +2,7 @@ package Tinify
 
 import (
 	"errors"
+	"io"
 	"os"
 	"net/http"
 )
@@ -125,7 +126,7 @@ func (s *Source) toResult() (r *Result, err error) {
 		return
 	}
 
-	data, err := os.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return
 	}
