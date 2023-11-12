@@ -52,13 +52,13 @@ func (c *Client) Request(method string, urlRequest string, body interface{}) (re
 	}
 
 	// Clunky! But it works :-)
-	switch body.(type) {
+	switch b := body.(type) {
 	case []byte:
-		if len(body.([]byte)) > 0 {
-			req.Body = io.NopCloser(bytes.NewReader(body.([]byte)))
+		if len(b/*body.([]byte)*/) > 0 {
+			req.Body = io.NopCloser(bytes.NewReader(b/*body.([]byte)*/))
 		}
 	case map[string]interface{}:
-		if len(body.(map[string]interface{})) > 0 {
+		if len(b/*body.(map[string]interface{})*/) > 0 {
 			body2, err2 := json.Marshal(body)
 			if err2 != nil {
 				err = err2
