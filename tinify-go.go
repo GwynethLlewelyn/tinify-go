@@ -17,9 +17,9 @@ func main() {
 	app := &cli.App{
 		Name:		"tinify-go",
 		Usage:		"Compresses/converts images using the TinyPNG API.",
-		UsageText:	"See ",
+		UsageText:	"See https://tinypng.com/developers",
 		Version:	Tinify.VERSION,
-		// DefaultCommand: "translate",	// to avoid brealing compatibility with earlier versions.
+		DefaultCommand: "compress",
 		EnableBashCompletion: true,
 		// Compiled:
 		Authors: []*cli.Author{
@@ -35,24 +35,18 @@ func main() {
 		Copyright: "© 2017-2023 by gwpp. All rights reserved. Freely distributed under a MIT license.\nThis software is not affiliated nor endorsed by TinyPNG.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:    "source_lang",
-				Aliases: []string{"s"},
-				Usage:   "Set source language without using the settings file",
-				Value:	 "EN",
+				Name:    "input",
+				Aliases: []string{"i"},
+				Usage:   "Input file name or URL",
+				Value:	 "",
 //				Destination:	&setting.SourceLang,
 			},
 			&cli.StringFlag{
-				Name:    "target_lang",
-				Aliases: []string{"t"},
-				Usage:   "Set target language without using the settings file",
-				Value:	 "JA",
+				Name:    "output",
+				Aliases: []string{"o"},
+				Usage:   "Output file name; if ommitted, writes to standard output",
+				Value:	 "",
 //				Destination:	&setting.TargetLang,
-			},
-			&cli.BoolFlag{
-				Name:    "pro",
-				Usage:   "Use Pro plan's endpoint?",
-				Value:   false,
-//				Destination: &setting.IsPro,
 			},
 			&cli.BoolFlag{
 				Name:	"debug",
@@ -63,11 +57,11 @@ func main() {
 		},
 		Commands: []*cli.Command{
 			{
-				Name:        "translate",
-				Aliases:     []string{"trans"},
-				Usage:       "Basic translation of a set of Unicode strings into another language",
-				Description: "Text to be translated.\nOnly UTF-8-encoded plain text is supported. May contain multiple sentences, but the total request body size must not exceed 128 KiB (128 · 1024 bytes).\nPlease split up your text into multiple	calls if it exceeds this limit.",
-				Category:	 "Translations",
+				Name:        "compress",
+				Aliases:     []string{"c"},
+				Usage:       "Compress images",
+				Description: "You can upload any WebP, JPEG or PNG image to the Tinify API to compress it. We will automatically detect the type of image and optimise with the TinyPNG or TinyJPG engine accordingly. Compression will start as soon as you upload a file or provide the URL to the image.",
+//				Category:	 "Translations",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "tag_handling",
@@ -82,6 +76,50 @@ func main() {
 								default:
 									return fmt.Errorf("tag_handling must be either `xml` or `html` (got: %s)",
 v)							}
+						},
+					},
+				},
+			},
+			{
+				Name:        "resize",
+				Aliases:     []string{"r"},
+				Usage:       "Resize images",
+				Description: "Use the API to create resized versions of your uploaded images. By letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.",
+//				Category:	 "Resizing",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "method",
+						Usage:       fmt.Sprintf("Valid methods are: `%s`, `%s`, `%s`, or `%s`", Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb),
+						Aliases:     []string{"m"},
+						Value:       Tinify.ResizeMethodScale,
+//						Destination:	&setting.TagHandling,
+						Action: func(c *cli.Context, method string) error {
+							switch method {
+							case Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb:
+								return nil
+							default:
+								return fmt.Errorf("method must be one of `%s`, `%s`, `%s`, or `%s` (got: %s)", Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb, method)
+							}
+						},
+					},
+				},
+			},
+			{
+				Name:        "convert",
+				Aliases:     []string{"t"},
+				Usage:       "Convert between image types",
+				Description: "You can use the API to convert your images to your desired image type. Tinify currently supports converting between WebP, JPEG, and PNG. When you provide more than one image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
+//				Category:	 "Conversion",
+				Flags: []cli.Flag{
+					&cli.StringSliceFlag{
+						Name:        "image-type",
+						Usage:       "",
+						Aliases:     []string{"m"},
+						Value:       Tinify.ExtensionWebP,
+//						Destination:	&setting.TagHandling,
+						Action: func(c *cli.Context, types []string) error {
+							// check if we have gotten a valid selection of types
+							return nil
 						},
 					},
 				},

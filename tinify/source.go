@@ -11,10 +11,12 @@ const (
 	ResizeMethodScale = "scale"
 	ResizeMethodFit   = "fit"
 	ResizeMethodCover = "cover"
+	ResizeMethodThumb = "thumb"	// new method!
 )
 
 type ResizeMethod string
 
+// JSONified type for selecting resize options.
 type ResizeOption struct {
 	Method ResizeMethod `json:"method"`
 	Width  int64        `json:"width"`
@@ -100,7 +102,7 @@ func (s *Source) ToFile(path string) error {
 
 func (s *Source) Resize(option *ResizeOption) error {
 	if option == nil {
-		return errors.New("option is required")
+		return errors.New("option for resize is required")
 	}
 
 	s.commands["resize"] = option
@@ -108,19 +110,67 @@ func (s *Source) Resize(option *ResizeOption) error {
 	return nil
 }
 
+var convertMIMETypes = map[string]string{
+	"png":	"image/png",
+	"jpeg":	"image/jpeg",
+	"webp":	"image/webp",
+}
+
+// Extra type struct for JSONification purposes...
+type ConvertOptions struct {
+	Type string	`json:"type"`	// can be image/png, etc.
+}
+
+// Converts the image to one of several possible choices, returning the smallest.
+func (s *Source) Convert(options []string) error {
+	if len(options) == 0 {
+		return errors.New("at least one option for convert is required")
+	}
+	// quick & dirty
+	allOpts := ""
+	for i, option := range options {
+		if i != 0 {
+			allOpts += ","
+		}
+		allOpts += convertMIMETypes[option]
+	}
+	// Should never happen...
+	if len(allOpts) == 0 {
+		return errors.New("concatenation of MIME types unexpectedly failed")
+	}
+	// Allocate some memory for the convert options, one never knows...
+	convertOptions := new(ConvertOptions)
+	convertOptions.Type = allOpts
+	s.commands["convert"] = convertOptions
+
+	return nil
+}
+
+// JSONified type for transform options, currently only "background" is supported.
+type TransformOptions struct {
+	Background string `json:"background"`	// "white", "black", or a hex colour.
+}
+
+// Transforms the transparency colour into the desired background colour.
+// Valid options are "white", "black", or a hex colour.
+func (s *Source) Transform(option *TransformOptions) error {
+	if option == nil {
+		return errors.New("at least one option for transform is required")
+	}
+
+	s.commands["transform"] = option
+
+	return nil
+}
+
+
+
 func (s *Source) toResult() (r *Result, err error) {
 	if len(s.url) == 0 {
 		err = errors.New("url is empty")
 		return
 	}
 
-	//body := make([]byte, 0)
-	//if len(s.commands) > 0 {
-	//	body, err = json.Marshal(s.commands)
-	//	if err != nil {
-	//		return
-	//	}
-	//}
 	response, err := GetClient().Request(http.MethodGet, s.url, s.commands)
 	if err != nil {
 		return

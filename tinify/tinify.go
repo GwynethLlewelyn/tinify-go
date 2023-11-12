@@ -5,22 +5,23 @@ import "errors"
 const VERSION = "v0.1.0"	// using semantic versioning; 1.0 is considered "stable"...
 
 var (
-	key		string	// TinyPNG API Key, as obtained through https://tinypng.com/developers.
-	client	*Client	//
-	proxy	string	//
+	key		string	// Tinify API Key, as obtained through https://tinypng.com/developers.
+	client	*Client	// Default Tinify API client.
+	proxy	string	// Proxy used just for the Tinify API.
 )
 
-// This function allows Tinify.SetKey() to be valid Go code.
+// Sets the global Tinify API key for the module.
+// NOTE: This function allows `Tinify.SetKey()` to be valid Go code.
 func SetKey(setKey string) {
 	key = setKey
 }
 
-// Go will automatically use proxies, but that's fine.
+// Go will automatically use proxies, but that's fine, we can still override them.
 func Proxy(setProxy string) {
 	proxy = setProxy
 }
 
-
+// Returns a new Client after checking that the stored API key is valid.
 func GetClient() *Client {
 	if len(key) == 0 {
 		panic(errors.New("provide an API key with Tinify.SetKey(key string)"))
