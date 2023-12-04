@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"strings"
 	"github.com/gwpp/tinify-go/tinify"
 	"github.com/urfave/cli/v2"
 )
@@ -62,23 +64,7 @@ func main() {
 				Usage:       "Compress images",
 				Description: "You can upload any WebP, JPEG or PNG image to the Tinify API to compress it. We will automatically detect the type of image and optimise with the TinyPNG or TinyJPG engine accordingly. Compression will start as soon as you upload a file or provide the URL to the image.",
 //				Category:	 "Translations",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:        "tag_handling",
-						Usage:       "Set to XML or HTML in order to do more advanced parsing (empty means just using the plain text variant)",
-						Aliases:     []string{"tag"},
-						Value:       "",
-//						Destination:	&setting.TagHandling,
-						Action: func(c *cli.Context, v string) error {
-							switch v {
-								case "xml", "html":
-									return nil
-								default:
-									return fmt.Errorf("tag_handling must be either `xml` or `html` (got: %s)",
-v)							}
-						},
-					},
-				},
+
 			},
 			{
 				Name:        "resize",
@@ -115,15 +101,75 @@ v)							}
 						Name:        "image-type",
 						Usage:       "",
 						Aliases:     []string{"m"},
-						Value:       Tinify.ExtensionWebP,
+//						Value:       nil,
 //						Destination:	&setting.TagHandling,
 						Action: func(c *cli.Context, types []string) error {
 							// check if we have gotten a valid selection of types
+							for _, str := range types {
+								switch str {
+									case "webp", "png", "jpg":
+										// this one is valid; continue looping
+										continue
+									default:
+										return fmt.Errorf("invalid file format: %s", str)
+								}
+							}
 							return nil
 						},
 					},
 				},
 			},
+		}, // end commands
+		Action: func(c *cli.Context) error {
+			// TODO(gwyneth): Create constants for debugging levels.
+			if debugLevel > 1 {
+				fmt.Fprintf(os.Stderr, "Number of args (Narg): %d, c.Args.Len(): %d\n", c.NArg(), c.Args().Len())
+			}
+			// 0 arguments: ok, file comes from STDIN,
+			// 1 argument:  ok, file comes either from local disk or is an URL to be sent to TinyPNG.
+			// 2 or more:   invalid, we can only send one at the time. Maybe we'll loosen this at a later stage.
+			if c.NArg() >= 2 {
+				return fmt.Errorf("cannot specify multiple file paths or URLs")
+			}
+
+			var (
+				rawImage []byte		// raw image file, when loaded from disk.
+				imageName string	// filename or URL.
+				err error			// declared here due to scope issues.
+				f = os.Stdin		// file handler; STDIN by default.
+				isURL = false		// do we have an URL? (false means it's a file)
+			)
+
+			if c.NArg() == 1 {
+				// check if it's URL or filename
+				imageName = c.Args().First()
+				// `://` is hardly a valid filename, but a requirement for being an URL:
+				isURL = strings.Contains(imageName, "://")
+				// handle URL
+				if isURL {
+					return fmt.Errorf("sorry, handling URLs is not implemented yet")
+				}
+				f, err = os.Open(imageName)
+				if err != nil {
+					return err
+				}
+			}
+			// theoretically, theoretically, one might do:
+			//   `echo "https://example.com/myimage.png" | tinify-go compress`
+			//  and expect it to work; we leave that for a future release. (gwyneth 20231130)
+			rawImage, err = io.ReadAll(f)
+			if err != nil {
+				return err
+			}
+
+			if debugLevel > 1 {
+				fmt.Fprintln(os.Stderr, "Arg: ", imageName, " Size: ", len(rawImage))
+			}
+			// Now call the TinyPNG
+			//client := ""
+
+
+			return nil
 		},
 	}
 	err := app.Run(os.Args)

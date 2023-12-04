@@ -61,7 +61,7 @@ func FromBuffer(buf []byte) (s *Source, err error) {
 
 func FromUrl(url string) (s *Source, err error) {
 	if len(url) == 0 {
-		err = errors.New("url is required")
+		err = errors.New("URL is required")
 		return
 	}
 
