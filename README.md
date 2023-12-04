@@ -1,8 +1,9 @@
+![Tinify API client for Golang logo](assets/tinify-go-logo-pangopher-128x128.png)
 # Tinify API client for Golang
 
 [:book: 国内的朋友看这里](http://www.jianshu.com/p/5c4161db4ac8)
 
-------
+---
 
 Golang client for the Tinify API, used for [TinyPNG](https://tinypng.com) and [TinyJPG](https://tinyjpg.com). Tinify compresses or resize your images intelligently. Read more at [http://tinify.com](http://tinify.com).
 
@@ -20,11 +21,12 @@ go get -u github.com/gwpp/tinify-go
 
 ## Usage
 
-- About key
+-   About the TinyPNG API key
 
-    Get your API key from  https://tinypng.com/developers
+    Get your API key from https://tinypng.com/developers
 
-- Compress
+-   Compress
+
     ```golang
     func TestCompressFromFile(t *testing.T) {
         Tinify.SetKey(Key)
@@ -43,7 +45,8 @@ go get -u github.com/gwpp/tinify-go
     }
     ```
 
-- Resize
+-   Resize
+
     ```golang
     func TestResizeFromBuffer(t *testing.T) {
         Tinify.SetKey(Key)
@@ -77,12 +80,11 @@ go get -u github.com/gwpp/tinify-go
     }
     ```
 
-- ***Notice:***
+-   **_Notice:_**
 
-    Tinify.ResizeMethod support `scale`, `fit` and `cover`. If used fit or cover, you must provide `both a width and a height`. But used scale, you must provide either a target width or a target height, `but not both`.
+    `Tinify.ResizeMethod()` supports `scale`, `fit` and `cover`. If you use either fit or cover, you must provide **both a width and a height**. But if you use scale, you must instead provide _either_ a target width _or_ a target height, **but not both**.
 
-
-- More usage, please see [tinify_test.go](./tinify_test.go)
+-   For further usage, please read the comments in [tinify_test.go](./tinify_test.go)
 
 ## Running tests
 
