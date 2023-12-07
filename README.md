@@ -1,11 +1,12 @@
 ![Tinify API client for Golang logo](assets/tinify-go-logo-pangopher-128x128.png)
+
 # Tinify API client for Golang
 
 [:book: 国内的朋友看这里](http://www.jianshu.com/p/5c4161db4ac8)
 
 ---
 
-Golang client for the Tinify API, used for [TinyPNG](https://tinypng.com) and [TinyJPG](https://tinyjpg.com). Tinify compresses or resize your images intelligently. Read more at [http://tinify.com](http://tinify.com).
+Golang client for the [Tinify API](https://tinypng.com/developers/reference), used for [TinyPNG](https://tinypng.com) and [TinyJPG](https://tinyjpg.com). Tinify compresses or resize your images intelligently. Read more at [http://tinify.com](http://tinify.com).
 
 ## Documentation
 
