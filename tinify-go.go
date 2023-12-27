@@ -97,6 +97,32 @@ func main() {
 							}
 						},
 					},
+					&cli.Int64Flag{
+						Name:        "height",
+						Usage:       "Image height",
+						Aliases:     []string{"e"},
+						Value:       100,
+//						Destination:	&setting.height,
+						Action: func(c *cli.Context, value int64) error {
+							if value < 1 {
+								return cli.Exit("height must be bigger than 1 pixel", 5)
+							}
+							return nil
+						},
+					},
+					&cli.Int64Flag{
+						Name:        "width",
+						Usage:       "Image height",
+						Aliases:     []string{"w"},
+						Value:       100,
+//						Destination:	&setting.width,
+						Action: func(c *cli.Context, value int64) error {
+							if value < 1 {
+								return cli.Exit("width must be bigger than 1 pixel", 5)
+							}
+							return nil
+						},
+					},
 				},
 			},
 			{
@@ -197,19 +223,19 @@ func main() {
 				}
 			}
 
-			// err = nil	// reset error!
-
-			// Select the correct command to show
+			// commands are cumulative! Or ar least some are
 			switch c.Command.Name {
 				case "compress":
-				// now prepare all parameters to send to the Tinify API:
-					err = source.Resize(&Tinify.ResizeOption{
-						Method: Tinify.ResizeMethodFit,
-						Width:  100, // replace by real value!
-						Height: 100,
-					})
+					fallthrough
 				case "resize":
+					err = source.Resize(&Tinify.ResizeOption{
+						Method: Tinify.ResizeMethod(c.String("method")),
+						Width:  c.Int64("width"), // replace by real value!
+						Height: c.Int64("height"),
+					})
+					fallthrough
 				case "convert":
+					fallthrough
 				default:
 			}
 			if err != nil {
