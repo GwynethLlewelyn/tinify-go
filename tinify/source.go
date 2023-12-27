@@ -2,9 +2,10 @@ package Tinify
 
 import (
 	"errors"
+	"fmt"
 	"io"
-	"os"
 	"net/http"
+	"os"
 )
 
 const (
@@ -100,6 +101,23 @@ func (s *Source) ToFile(path string) error {
 	return result.ToFile(path)
 }
 
+// ToBuffer() extracts the raw data (an image) from the result.
+// It's similar in concept to ToFile, but allows sending the data to STDOUT, for instance.
+// (gwyneth 20230209)
+func (s *Source) ToBuffer() (rawData []byte, err error) {
+	result, err := s.toResult()
+	if err != nil {
+		return
+	}
+
+	rawData = result.Data()	// this is result.data, but may not be in the future, who knows? (gwyneth 20231209)
+	if len(rawData) == 0 {
+		err = fmt.Errorf("result returned zero bytes")
+	}
+	return
+}
+
+
 func (s *Source) Resize(option *ResizeOption) error {
 	if option == nil {
 		return errors.New("option for resize is required")
@@ -162,8 +180,6 @@ func (s *Source) Transform(option *TransformOptions) error {
 
 	return nil
 }
-
-
 
 func (s *Source) toResult() (r *Result, err error) {
 	if len(s.url) == 0 {

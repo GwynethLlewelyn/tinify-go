@@ -11,14 +11,16 @@ import (
 )
 
 var (
-	debugLevel int	// debug level, as set by the user with -d -d -d ...
+	debugLevel int			// debug level, as set by the user with -d -d -d ...
+	imageName string		// filename or URL.
+	outputFileName string	// if set, it's the output filename; if not, well...
 )
 
 func main() {
 	// start app
 	app := &cli.App{
 		Name:		"tinify-go",
-		Usage:		"Compresses/converts images using the TinyPNG API.",
+		Usage:		"Compresses/converts/resizes images using the TinyPNG API.",
 		UsageText:	"See https://tinypng.com/developers",
 		Version:	Tinify.VERSION,
 		DefaultCommand: "compress",
@@ -34,27 +36,34 @@ func main() {
 				Email: "gwyneth.llewelyn@gwynethllewelyn.net",
 			},
 		},
-		Copyright: "© 2017-2023 by gwpp. All rights reserved. Freely distributed under a MIT license.\nThis software is not affiliated nor endorsed by TinyPNG.",
+		Copyright: "© 2017-2023 by gwpp. All rights reserved. Freely distributed under a MIT license.\nThis software is neither affiliated with, nor endorsed by Tinify B.V.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "input",
-				Aliases: []string{"i"},
-				Usage:   "Input file name or URL",
+				Aliases: []string{"i", "url"},
+				Usage:   "Input `file` name or URL; if omitted, reads from standard input",
 				Value:	 "",
-//				Destination:	&setting.SourceLang,
+				Destination:	&imageName,
 			},
 			&cli.StringFlag{
 				Name:    "output",
 				Aliases: []string{"o"},
-				Usage:   "Output file name; if ommitted, writes to standard output",
+				Usage:   "Output `file` name; if ommitted, writes to standard output",
 				Value:	 "",
-//				Destination:	&setting.TargetLang,
+				Destination:	&outputFileName,
 			},
 			&cli.BoolFlag{
 				Name:	"debug",
 				Aliases: []string{"d"},
 				Usage:	"Debugging; repeating the flag increases verbosity.",
 				Count:	&debugLevel,
+			},
+			&cli.StringFlag{
+				Name:	"key",
+				Aliases: []string{"k"},
+				Usage:	"The `value` of your Tinify API key; you can also read it from the environment variable ",
+				Value:	"",
+				EnvVars: []string{"TINIFY_API_KEY"},
 			},
 		},
 		Commands: []*cli.Command{
@@ -75,7 +84,7 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "method",
-						Usage:       fmt.Sprintf("Valid methods are: `%s`, `%s`, `%s`, or `%s`", Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb),
+						Usage:       fmt.Sprintf("Valid `method`s are: `%s`, `%s`, `%s`, or `%s`", Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb),
 						Aliases:     []string{"m"},
 						Value:       Tinify.ResizeMethodScale,
 //						Destination:	&setting.TagHandling,
@@ -84,7 +93,7 @@ func main() {
 							case Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb:
 								return nil
 							default:
-								return fmt.Errorf("method must be one of `%s`, `%s`, `%s`, or `%s` (got: %s)", Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb, method)
+								return cli.Exit(fmt.Sprintf("method must be one of `%s`, `%s`, `%s`, or `%s` (got: %s)", Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb, method), 4)
 							}
 						},
 					},
@@ -99,19 +108,21 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringSliceFlag{
 						Name:        "image-type",
-						Usage:       "",
-						Aliases:     []string{"m"},
-//						Value:       nil,
+						Usage:       "Valid image `type`s are: `webp`, `png`, `jpg`",
+						Aliases:     []string{"g"},
+//						Value:       "webp",	// cannot be just one!
+//						DefaultText: "webp",
+						Value: 		 cli.NewStringSlice("webp"),
 //						Destination:	&setting.TagHandling,
 						Action: func(c *cli.Context, types []string) error {
 							// check if we have gotten a valid selection of types
 							for _, str := range types {
 								switch str {
 									case "webp", "png", "jpg":
-										// this one is valid; continue looping
+										// any of these are valid; continue looping
 										continue
 									default:
-										return fmt.Errorf("invalid file format: %s", str)
+										return cli.Exit(fmt.Sprintf("invalid file format: %s", str), 3)
 								}
 							}
 							return nil
@@ -123,57 +134,121 @@ func main() {
 		Action: func(c *cli.Context) error {
 			// TODO(gwyneth): Create constants for debugging levels.
 			if debugLevel > 1 {
-				fmt.Fprintf(os.Stderr, "Number of args (Narg): %d, c.Args.Len(): %d\n", c.NArg(), c.Args().Len())
+				fmt.Fprintf(os.Stderr, "number of args (Narg): %d, c.Args.Len(): %d\n", c.NArg(), c.Args().Len())
 			}
 			// 0 arguments: ok, file comes from STDIN,
 			// 1 argument:  ok, file comes either from local disk or is an URL to be sent to TinyPNG.
 			// 2 or more:   invalid, we can only send one at the time. Maybe we'll loosen this at a later stage.
 			if c.NArg() >= 2 {
-				return fmt.Errorf("cannot specify multiple file paths or URLs")
+				return cli.Exit("cannot specify multiple file paths or URLs", 2)
 			}
 
 			var (
-				rawImage []byte		// raw image file, when loaded from disk.
-				imageName string	// filename or URL.
-				err error			// declared here due to scope issues.
-				f = os.Stdin		// file handler; STDIN by default.
-				isURL = false		// do we have an URL? (false means it's a file)
+				rawImage []byte			// raw image file, when loaded from disk.
+				err error				// declared here due to scope issues.
+				f = os.Stdin			// file handler; STDIN by default.
+				isURL = false			// do we have an URL? (false means it's a file)
+				source *Tinify.Source	// declared in advance to avoid scoping issues.
 			)
 
-			if c.NArg() == 1 {
+			// check if we have a valid Tinify API key
+			if len(c.String("key")) == 0 {
+				return cli.Exit("the Tinify API key was not found anywhere (tried environment and CLI flags); cannot proceed", 2)
+			}
+
+			// Set the API key:
+			Tinify.SetKey(c.String("key"))
+
+			// theoretically, theoretically, one might do:
+			//   `echo "https://example.com/myimage.png" | tinify-go compress`
+			//  and expect it to work; we leave that for a future release. (gwyneth 20231130)
+			if imageName == "" && c.NArg() == 1 {
 				// check if it's URL or filename
 				imageName = c.Args().First()
-				// `://` is hardly a valid filename, but a requirement for being an URL:
-				isURL = strings.Contains(imageName, "://")
-				// handle URL
-				if isURL {
-					return fmt.Errorf("sorry, handling URLs is not implemented yet")
-				}
+			}
+
+			// `://` is hardly a valid filename, but a requirement for being an URL:
+			isURL = strings.Contains(imageName, "://")
+			// handle URL later
+			if !isURL {
 				f, err = os.Open(imageName)
 				if err != nil {
 					return err
 				}
+
+				rawImage, err = io.ReadAll(f)
+				if err != nil {
+					return err
+				}
+
+				if debugLevel > 1 {
+					fmt.Fprintln(os.Stderr, "Arg: ", imageName, " Size: ", len(rawImage))
+				}
+
+				// Now call the TinyPNG API
+				source, err = Tinify.FromBuffer(rawImage)
+				if err != nil {
+					return err
+				}
+			} else {
+				source, err = Tinify.FromUrl(imageName)
+				if err != nil {
+					return err
+				}
 			}
-			// theoretically, theoretically, one might do:
-			//   `echo "https://example.com/myimage.png" | tinify-go compress`
-			//  and expect it to work; we leave that for a future release. (gwyneth 20231130)
-			rawImage, err = io.ReadAll(f)
+
+			// err = nil	// reset error!
+
+			// Select the correct command to show
+			switch c.Command.Name {
+				case "compress":
+				// now prepare all parameters to send to the Tinify API:
+					err = source.Resize(&Tinify.ResizeOption{
+						Method: Tinify.ResizeMethodFit,
+						Width:  100, // replace by real value!
+						Height: 100,
+					})
+				case "resize":
+				case "convert":
+				default:
+			}
 			if err != nil {
 				return err
 			}
 
-			if debugLevel > 1 {
-				fmt.Fprintln(os.Stderr, "Arg: ", imageName, " Size: ", len(rawImage))
+			// figure out the output filename, if any
+			if len(c.String("output")) == 0 {
+				rawImage, err := source.ToBuffer()
+				if err != nil {
+					return err
+				}
+				// rawImage contains the raw image data; we push it out to STDOUT
+				n, err := io.WriteString(os.Stdout, string(rawImage))
+				if err != nil {
+					return err
+				}
+				if debugLevel > 1 {
+					fmt.Fprintln(os.Stderr, "wrote ", n, " bytes to stdout")
+				}
+				return nil
 			}
-			// Now call the TinyPNG
-			//client := ""
+
+			outputFileName = c.String("output")
+			if debugLevel > 1 {
+				fmt.Fprintf(os.Stderr, "opening file %q for outputting image\n", outputFileName)
+			}
+			// write to file, we have a special function for that already defined:
+			err = source.ToFile(outputFileName)
+			if err != nil {
+				return err
+			}
+
 
 
 			return nil
 		},
 	}
-	err := app.Run(os.Args)
-	if err != nil {
+	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
 }
