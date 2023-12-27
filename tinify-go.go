@@ -112,7 +112,7 @@ func main() {
 					},
 					&cli.Int64Flag{
 						Name:        "width",
-						Usage:       "Image height",
+						Usage:       "Image width",
 						Aliases:     []string{"w"},
 						Value:       100,
 //						Destination:	&setting.width,
