@@ -72,7 +72,7 @@ func main() {
 				Aliases:     []string{"c"},
 				Usage:       "Compress images",
 				Description: "You can upload any WebP, JPEG or PNG image to the Tinify API to compress it. We will automatically detect the type of image and optimise with the TinyPNG or TinyJPG engine accordingly. Compression will start as soon as you upload a file or provide the URL to the image.",
-//				Category:	 "Translations",
+//				Category:	 "Compression",
 
 			},
 			{
@@ -87,7 +87,6 @@ func main() {
 						Usage:       fmt.Sprintf("Valid `method`s are: `%s`, `%s`, `%s`, or `%s`", Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb),
 						Aliases:     []string{"m"},
 						Value:       Tinify.ResizeMethodScale,
-//						Destination:	&setting.TagHandling,
 						Action: func(c *cli.Context, method string) error {
 							switch method {
 							case Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb:
@@ -136,10 +135,7 @@ func main() {
 						Name:        "image-type",
 						Usage:       "Valid image `type`s are: `webp`, `png`, `jpg`",
 						Aliases:     []string{"g"},
-//						Value:       "webp",	// cannot be just one!
-//						DefaultText: "webp",
 						Value: 		 cli.NewStringSlice("webp"),
-//						Destination:	&setting.TagHandling,
 						Action: func(c *cli.Context, types []string) error {
 							// check if we have gotten a valid selection of types
 							for _, str := range types {

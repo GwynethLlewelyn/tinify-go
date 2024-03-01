@@ -107,6 +107,6 @@ go test
 
 ## License
 
-This software is licensed under the MIT License. [View the license](LICENSE).
+This software is licensed under the [MIT License](LICENSE).
 
 The logo (a cross-breed between the gopher mascot and the TinyPNG panda!) was provided courtesy of Microsoft's image generative AI, which is currently based on OpenAI's DALL-E technology.
