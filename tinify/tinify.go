@@ -2,7 +2,7 @@ package Tinify
 
 import "errors"
 
-const VERSION = "v0.1.0"	// using semantic versioning; 1.0 is considered "stable"...
+const VERSION = "v0.2.0"	// using semantic versioning; 1.0 is considered "stable"...
 
 var (
 	key		string	// Tinify API Key, as obtained through https://tinypng.com/developers.
