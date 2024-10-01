@@ -36,36 +36,7 @@ func main() {
 				Email: "gwyneth.llewelyn@gwynethllewelyn.net",
 			},
 		},
-		Copyright: "© 2017-2023 by gwpp. All rights reserved. Freely distributed under a MIT license.\nThis software is neither affiliated with, nor endorsed by Tinify B.V.",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "input",
-				Aliases: []string{"i", "url"},
-				Usage:   "Input `file` name or URL; if omitted, reads from standard input",
-				Value:	 "",
-				Destination:	&imageName,
-			},
-			&cli.StringFlag{
-				Name:    "output",
-				Aliases: []string{"o"},
-				Usage:   "Output `file` name; if ommitted, writes to standard output",
-				Value:	 "",
-				Destination:	&outputFileName,
-			},
-			&cli.BoolFlag{
-				Name:	"debug",
-				Aliases: []string{"d"},
-				Usage:	"Debugging; repeating the flag increases verbosity.",
-				Count:	&debugLevel,
-			},
-			&cli.StringFlag{
-				Name:	"key",
-				Aliases: []string{"k"},
-				Usage:	"The `value` of your Tinify API key; you can also read it from the environment variable ",
-				Value:	"",
-				EnvVars: []string{"TINIFY_API_KEY"},
-			},
-		},
+		Copyright: "© 2017-2024 by gwpp. All rights reserved. Freely distributed under a MIT license.\nThis software is neither affiliated with, nor endorsed by Tinify B.V.",
 		Commands: []*cli.Command{
 			{
 				Name:        "compress",
@@ -73,7 +44,12 @@ func main() {
 				Usage:       "Compress images",
 				Description: "You can upload any WebP, JPEG or PNG image to the Tinify API to compress it. We will automatically detect the type of image and optimise with the TinyPNG or TinyJPG engine accordingly. Compression will start as soon as you upload a file or provide the URL to the image.",
 //				Category:	 "Compression",
+				Action: func(c *cli.Context) error {
+					fmt.Println("compress not implemented yet?")
+					fmt.Println("Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "outputFileName", outputFileName, "type", )
 
+					return nil
+				},
 			},
 			{
 				Name:        "resize",
@@ -123,6 +99,12 @@ func main() {
 						},
 					},
 				},
+				Action: func(c *cli.Context) error {
+					fmt.Println("resize not implemented yet?")
+					fmt.Println("Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "outputFileName", outputFileName, "type", )
+
+					return nil
+				},
 			},
 			{
 				Name:        "convert",
@@ -151,10 +133,47 @@ func main() {
 						},
 					},
 				},
+				Action: func(c *cli.Context) error {
+					fmt.Println("We reached convert!")
+					fmt.Println("Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "outputFileName", outputFileName, "type", )
+
+					return nil
+				},
 			},
 		}, // end commands
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "input",
+				Aliases: []string{"i", "url"},
+				Usage:   "Input `file` name or URL; if omitted, reads from standard input",
+				Value:	 "",
+				Destination:	&imageName,
+			},
+			&cli.StringFlag{
+				Name:    "output",
+				Aliases: []string{"o"},
+				Usage:   "Output `file` name; if ommitted, writes to standard output",
+				Value:	 "",
+				Destination:	&outputFileName,
+			},
+			&cli.BoolFlag{
+				Name:	"debug",
+				Aliases: []string{"d"},
+				Usage:	"Debugging; repeating the flag increases verbosity.",
+				Count:	&debugLevel,
+			},
+			&cli.StringFlag{
+				Name:	"key",
+				Aliases: []string{"k"},
+				Usage:	"The `value` of your Tinify API key; you can also read it from the environment variable ",
+				Value:	"",
+				EnvVars: []string{"TINIFY_API_KEY"},
+			},
+		}, // end common Flags
 		Action: func(c *cli.Context) error {
 			// TODO(gwyneth): Create constants for debugging levels.
+			fmt.Println("Global action: Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "file", outputFileName, outputFileName)
+
 			if debugLevel > 1 {
 				fmt.Fprintf(os.Stderr, "number of args (Narg): %d, c.Args.Len(): %d\n", c.NArg(), c.Args().Len())
 			}
