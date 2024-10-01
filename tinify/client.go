@@ -123,8 +123,4 @@ func init() {
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
-	// .Clone(http.DefaultTransport)
-/* 	 &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-	} */
 }
