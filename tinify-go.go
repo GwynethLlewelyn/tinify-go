@@ -14,13 +14,23 @@ var (
 	debugLevel int			// debug level, as set by the user with -d -d -d ...
 	imageName string		// filename or URL.
 	outputFileName string	// if set, it's the output filename; if not, well...
+	fileType string			// any set of webp, png, jpg
+	executeCommand int		// Command to be executed; if zero, it runs compress by default.
+)
+
+// constants for setting a command to execute
+const (
+	NONE	= iota
+	COMPRESS
+	RESIZE
+	CONVERT
 )
 
 func main() {
 	// start app
 	app := &cli.App{
 		Name:		"tinify-go",
-		Usage:		"Compresses/converts/resizes images using the TinyPNG API.",
+		Usage:		"Compresses/converts/resizes images using the Tinify API.",
 		UsageText:	"See https://tinypng.com/developers",
 		Version:	Tinify.VERSION,
 		DefaultCommand: "compress",
@@ -37,11 +47,13 @@ func main() {
 			},
 		},
 		Copyright: "© 2017-2024 by gwpp. All rights reserved. Freely distributed under a MIT license.\nThis software is neither affiliated with, nor endorsed by Tinify B.V.",
+		Suggest: true,
+		/*
 		Commands: []*cli.Command{
 			{
-				Name:        "compress",
-				Aliases:     []string{"c"},
-				Usage:       "Compress images",
+				Name:		"compress",
+				Aliases: 	[]string{"c"},
+				Usage:   	"Compress images",
 				Description: "You can upload any WebP, JPEG or PNG image to the Tinify API to compress it. We will automatically detect the type of image and optimise with the TinyPNG or TinyJPG engine accordingly. Compression will start as soon as you upload a file or provide the URL to the image.",
 //				Category:	 "Compression",
 				Action: func(c *cli.Context) error {
@@ -52,17 +64,17 @@ func main() {
 				},
 			},
 			{
-				Name:        "resize",
-				Aliases:     []string{"r"},
-				Usage:       "Resize images",
+				Name:		"resize",
+				Aliases: 	[]string{"r"},
+				Usage:   	"Resize images",
 				Description: "Use the API to create resized versions of your uploaded images. By letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.",
 //				Category:	 "Resizing",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:        "method",
-						Usage:       fmt.Sprintf("Valid `method`s are: `%s`, `%s`, `%s`, or `%s`", Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb),
-						Aliases:     []string{"m"},
-						Value:       Tinify.ResizeMethodScale,
+						Name:		"method",
+						Usage:   	fmt.Sprintf("Valid `method`s are: `%s`, `%s`, `%s`, or `%s`", Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb),
+						Aliases: 	[]string{"m"},
+						Value:   	Tinify.ResizeMethodScale,
 						Action: func(c *cli.Context, method string) error {
 							switch method {
 							case Tinify.ResizeMethodScale, Tinify.ResizeMethodFit, Tinify.ResizeMethodCover, Tinify.ResizeMethodThumb:
@@ -73,10 +85,10 @@ func main() {
 						},
 					},
 					&cli.Int64Flag{
-						Name:        "height",
-						Usage:       "Image height",
-						Aliases:     []string{"e"},
-						Value:       100,
+						Name:		"height",
+						Usage:   	"Image height",
+						Aliases: 	[]string{"e"},
+						Value:   	100,
 //						Destination:	&setting.height,
 						Action: func(c *cli.Context, value int64) error {
 							if value < 1 {
@@ -86,10 +98,10 @@ func main() {
 						},
 					},
 					&cli.Int64Flag{
-						Name:        "width",
-						Usage:       "Image width",
-						Aliases:     []string{"w"},
-						Value:       100,
+						Name:		"width",
+						Usage:   	"Image width",
+						Aliases: 	[]string{"w"},
+						Value:   	100,
 //						Destination:	&setting.width,
 						Action: func(c *cli.Context, value int64) error {
 							if value < 1 {
@@ -107,16 +119,16 @@ func main() {
 				},
 			},
 			{
-				Name:        "convert",
-				Aliases:     []string{"t"},
-				Usage:       "Convert between image types",
+				Name:		"convert",
+				Aliases: 	[]string{"t"},
+				Usage:   	"Convert between image types",
 				Description: "You can use the API to convert your images to your desired image type. Tinify currently supports converting between WebP, JPEG, and PNG. When you provide more than one image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
 //				Category:	 "Conversion",
 				Flags: []cli.Flag{
 					&cli.StringSliceFlag{
-						Name:        "image-type",
-						Usage:       "Valid image `type`s are: `webp`, `png`, `jpg`",
-						Aliases:     []string{"g"},
+						Name:		"image-type",
+						Usage:   	"Valid image `type`s are: `webp`, `png`, `jpg`",
+						Aliases: 	[]string{"g"},
 						Value: 		 cli.NewStringSlice("webp"),
 						Action: func(c *cli.Context, types []string) error {
 							// check if we have gotten a valid selection of types
@@ -135,22 +147,97 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					fmt.Println("We reached convert!")
-					fmt.Println("Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "outputFileName", outputFileName, "type", )
+					fileType = strings.Join(c.StringSlice("image-type"), `, `)
+					fmt.Println("Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "outputFileName", outputFileName, "type", fileType)
 
 					return nil
 				},
 			},
 		}, // end commands
+		*/
 		Flags: []cli.Flag{
+			// temporarily, the command flags will be here
+			&cli.BoolFlag{
+				Name:	"compress",
+				Aliases: []string{"c", "comp"},
+				Usage:   "Allows a file to be compressed",
+				Value:	 true,
+				Action: func(c *cli.Context, cmd bool) error {
+					if cmd {
+						if executeCommand == NONE {
+							executeCommand = COMPRESS
+						} else {
+							return cli.Exit("only one command is possible at a time", 1)
+						}
+					}
+					return nil
+				},
+			},
+			&cli.BoolFlag{
+				Name:	"resize",
+				Aliases: []string{"r"},
+				Usage:   "Allows a file to be compressed",
+				Value:	 true,
+				Action: func(c *cli.Context, cmd bool) error {
+					if cmd {
+						if executeCommand == NONE {
+							executeCommand = RESIZE
+						} else {
+							return cli.Exit("only one command is possible at a time", 1)
+						}
+					}
+					return nil
+				},
+			},
+			&cli.BoolFlag{
+				Name:	"convert",
+				Aliases: []string{"t", "transform"},
+				Usage:   "Converts file to a different type",
+				Value:	 true,
+				Action: func(c *cli.Context, cmd bool) error {
+					if cmd {
+						if executeCommand == NONE {
+							executeCommand = CONVERT
+						} else {
+							return cli.Exit("only one command is possible at a time", 1)
+						}
+					}
+					return nil
+				},
+			},
+			// select image type for conversion
+			&cli.StringSliceFlag{
+				Name:		"image-type",
+				Usage:   	"Valid image `type`s are: `webp`, `png`, `jpg`",
+				Aliases: 	[]string{"f", "format"},
+				Value: 		 cli.NewStringSlice("webp"),
+				Action: func(c *cli.Context, types []string) error {
+					if executeCommand == CONVERT {
+						// check if we have gotten a valid selection of types
+						for _, str := range types {
+							switch str {
+								case "webp", "png", "jpg":
+									// any of these are valid; continue looping
+									continue
+								default:
+									return cli.Exit(fmt.Sprintf("invalid file format: %s", str), 3)
+							}
+						}
+					} else {
+						return cli.Exit("invalid format parameter: not required except for `CONVERT`", 1)
+					}
+					return nil
+				},
+			},
 			&cli.StringFlag{
-				Name:    "input",
+				Name:	"input",
 				Aliases: []string{"i", "url"},
 				Usage:   "Input `file` name or URL; if omitted, reads from standard input",
 				Value:	 "",
 				Destination:	&imageName,
 			},
 			&cli.StringFlag{
-				Name:    "output",
+				Name:	"output",
 				Aliases: []string{"o"},
 				Usage:   "Output `file` name; if ommitted, writes to standard output",
 				Value:	 "",
@@ -172,10 +259,19 @@ func main() {
 		}, // end common Flags
 		Action: func(c *cli.Context) error {
 			// TODO(gwyneth): Create constants for debugging levels.
-			fmt.Println("Global action: Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "file", outputFileName, outputFileName)
+			fmt.Println("Global action: ", executeCommand, "Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "output filename:", outputFileName)
+
+			// check if at least one command is active; if not, use COMPRESS as default
+			if executeCommand == NONE {
+				executeCommand = COMPRESS
+				if debugLevel > 1 {
+					fmt.Fprint(os.Stderr, "no explicit command given, using `compress`")
+				}
+			}
 
 			if debugLevel > 1 {
-				fmt.Fprintf(os.Stderr, "number of args (Narg): %d, c.Args.Len(): %d\n", c.NArg(), c.Args().Len())
+				fmt.Fprintf(os.Stderr, "number of args (Narg): %d, c.Args.Len(): %d\n",
+					c.NArg(), c.Args().Len())
 			}
 			// 0 arguments: ok, file comes from STDIN,
 			// 1 argument:  ok, file comes either from local disk or is an URL to be sent to TinyPNG.
@@ -239,17 +335,17 @@ func main() {
 			}
 
 			// commands are cumulative! Or ar least some are
-			switch c.Command.Name {
-				case "compress":
+			switch executeCommand {
+				case COMPRESS:
 					fallthrough
-				case "resize":
+				case RESIZE:
 					err = source.Resize(&Tinify.ResizeOption{
 						Method: Tinify.ResizeMethod(c.String("method")),
 						Width:  c.Int64("width"), // replace by real value!
 						Height: c.Int64("height"),
 					})
 					fallthrough
-				case "convert":
+				case CONVERT:
 					fallthrough
 				default:
 			}
@@ -284,7 +380,9 @@ func main() {
 				return err
 			}
 
-
+			if debugLevel > 1 {
+				fmt.Fprintf(os.Stderr, "opening file %q for outputting image\n", outputFileName)
+			}
 
 			return nil
 		},
