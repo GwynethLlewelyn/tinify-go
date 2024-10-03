@@ -22,7 +22,6 @@ func (r *ResultMeta) width() int64 {
 		return 0
 	}
 	width, _ := strconv.Atoi(w[0])
-
 	return int64(width)
 }
 
@@ -31,7 +30,6 @@ func (r *ResultMeta) height() int64 {
 	if len(h) == 0 {
 		return 0
 	}
-
 	height, _ := strconv.Atoi(h[0])
 	return int64(height)
 }
@@ -42,4 +40,19 @@ func (r *ResultMeta) location() string {
 		return ""
 	}
 	return arr[0]
+}
+
+// TODO(gwyneth): add Compression-Count and other potentially relevant headers
+// (gwyneth 20231003)
+
+// compressionCount returns how many times the user has invoked API calls.
+// The number is supposed to be reset every month, and there is a limit on the number of free calls
+// per month. Some operations will 'consume' more than one invocation.
+func (r *ResultMeta) compressionCount() int64 {
+	c := r.meta["Compression-Count"]
+	if len(c) == 0 {
+		return 0
+	}
+	compC, _ := strconv.Atoi(c[0])
+	return int64(compC)
 }
