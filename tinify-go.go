@@ -30,7 +30,7 @@ func main() {
 	// start app
 	app := &cli.App{
 		Name:		"tinify-go",
-		Usage:		"Compresses/converts/resizes images using the Tinify API.",
+		Usage:		"Compresses/resizes/converts images using the Tinify API.",
 		UsageText:	"See https://tinypng.com/developers",
 		Version:	Tinify.VERSION,
 		DefaultCommand: "compress",
@@ -162,6 +162,7 @@ func main() {
 				Aliases: []string{"c", "comp"},
 				Usage:   "Allows a file to be compressed",
 				Value:	 true,
+				Category:	 "Commands",
 				Action: func(c *cli.Context, cmd bool) error {
 					if cmd {
 						if executeCommand == NONE {
@@ -178,6 +179,7 @@ func main() {
 				Aliases: []string{"r"},
 				Usage:   "Allows a file to be compressed",
 				Value:	 true,
+				Category:	 "Commands",
 				Action: func(c *cli.Context, cmd bool) error {
 					if cmd {
 						if executeCommand == NONE {
@@ -194,6 +196,7 @@ func main() {
 				Aliases: []string{"t", "transform"},
 				Usage:   "Converts file to a different type",
 				Value:	 true,
+				Category:	 "Commands",
 				Action: func(c *cli.Context, cmd bool) error {
 					if cmd {
 						if executeCommand == NONE {
@@ -211,6 +214,7 @@ func main() {
 				Usage:   	"Valid image `type`s are: `webp`, `png`, `jpg`",
 				Aliases: 	[]string{"f", "format"},
 				Value: 		 cli.NewStringSlice("webp"),
+				Category:	 "Conversion flags",
 				Action: func(c *cli.Context, types []string) error {
 					if executeCommand == CONVERT {
 						// check if we have gotten a valid selection of types
@@ -234,6 +238,7 @@ func main() {
 				Aliases: []string{"i", "url"},
 				Usage:   "Input `file` name or URL; if omitted, reads from standard input",
 				Value:	 "",
+				Category:		"Global flags",
 				Destination:	&imageName,
 			},
 			&cli.StringFlag{
@@ -241,25 +246,30 @@ func main() {
 				Aliases: []string{"o"},
 				Usage:   "Output `file` name; if ommitted, writes to standard output",
 				Value:	 "",
+				Category:		"Global flags",
 				Destination:	&outputFileName,
 			},
 			&cli.BoolFlag{
 				Name:	"debug",
 				Aliases: []string{"d"},
 				Usage:	"Debugging; repeating the flag increases verbosity.",
+				Category:	 "Global flags",
 				Count:	&debugLevel,
 			},
 			&cli.StringFlag{
 				Name:	"key",
 				Aliases: []string{"k"},
-				Usage:	"The `value` of your Tinify API key; you can also read it from the environment variable ",
+				Usage:	"The `value` of your Tinify API key; you can also read it from the environment variable TINIFY_API_KEY",
 				Value:	"",
+				Category:	 "Global flags",
 				EnvVars: []string{"TINIFY_API_KEY"},
 			},
 		}, // end common Flags
 		Action: func(c *cli.Context) error {
 			// TODO(gwyneth): Create constants for debugging levels.
-			fmt.Println("Global action: ", executeCommand, "Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "output filename:", outputFileName)
+			if debugLevel > 2 {
+				fmt.Println("Global action: ", executeCommand, "Debug level:", debugLevel, "args:", c.NArg(), "imageName:", imageName, "output filename:", outputFileName)
+			}
 
 			// check if at least one command is active; if not, use COMPRESS as default
 			if executeCommand == NONE {
@@ -275,18 +285,26 @@ func main() {
 			}
 			// 0 arguments: ok, file comes from STDIN,
 			// 1 argument:  ok, file comes either from local disk or is an URL to be sent to TinyPNG.
-			// 2 or more:   invalid, we can only send one at the time. Maybe we'll loosen this at a later stage.
-			if c.NArg() >= 2 {
-				return cli.Exit("cannot specify multiple file paths or URLs", 2)
+			// 2 arguments: ok, assuming file in/file 9uy
+			//___________________________"Sore:   invalid, we can only send one at the time. Maybe we'll loosen this at a later stage.
+			if c.NArg() > 2 {
+				return cli.Exit("cannot specify more than two filenames as arguments", 2)
 			}
 
 			var (
 				rawImage []byte			// raw image file, when loaded from disk.
 				err error				// declared here due to scope issues.
 				f = os.Stdin			// file handler; STDIN by default.
-				isURL = false			// do we have an URL? (false means it's a file)
 				source *Tinify.Source	// declared in advance to avoid scoping issues.
 			)
+
+			// theoretically, theoretically, one might do:
+			//   `echo "https://example.com/myimage.png" | tinify-go --compress`
+			//  and expect it to work; we leave that for a future release. (gwyneth 20231130)
+			if imageName == "" && c.NArg() == 1 {
+				// check if it's URL or filename
+				imageName = c.Args().First()
+			}
 
 			// check if we have a valid Tinify API key
 			if len(c.String("key")) == 0 {
@@ -296,18 +314,9 @@ func main() {
 			// Set the API key:
 			Tinify.SetKey(c.String("key"))
 
-			// theoretically, theoretically, one might do:
-			//   `echo "https://example.com/myimage.png" | tinify-go compress`
-			//  and expect it to work; we leave that for a future release. (gwyneth 20231130)
-			if imageName == "" && c.NArg() == 1 {
-				// check if it's URL or filename
-				imageName = c.Args().First()
-			}
-
-			// `://` is hardly a valid filename, but a requirement for being an URL:
-			isURL = strings.Contains(imageName, "://")
-			// handle URL later
-			if !isURL {
+			// `://` is hardly a valid filename, but a requirement for being an URL;
+			// handle URL later.
+			if !strings.Contains(imageName, "://") {
 				f, err = os.Open(imageName)
 				if err != nil {
 					return err
@@ -328,13 +337,15 @@ func main() {
 					return err
 				}
 			} else {
+				// we're assuming that we've got a valid URL, which might *not* be the case!
+				// TODO(gwyneth): extra validation
 				source, err = Tinify.FromUrl(imageName)
 				if err != nil {
 					return err
 				}
 			}
 
-			// commands are cumulative! Or ar least some are
+			// commands are cumulative! Or ar least some are. TBD.
 			switch executeCommand {
 				case COMPRESS:
 					fallthrough
@@ -353,7 +364,7 @@ func main() {
 				return err
 			}
 
-			// figure out the output filename, if any
+			// Figure out the output filename, if any.
 			if len(c.String("output")) == 0 {
 				rawImage, err := source.ToBuffer()
 				if err != nil {

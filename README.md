@@ -105,6 +105,16 @@ cd $GOPATH/src/github.com/gwpp/tinify-go
 go test
 ```
 
+## Command-line utility
+
+To build it:
+```shell
+cd $GOPATH/src/github.com/gwpp/tinify-go
+go build
+# or, if you prefer, `go install`
+```
+and then invoke `./tinify-go --help` to get some basic instructions in what the CLI demonstrates.
+
 ## License
 
 This software is licensed under the [MIT License](LICENSE).

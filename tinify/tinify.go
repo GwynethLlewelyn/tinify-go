@@ -1,3 +1,7 @@
+// Unofficial implementation of the Tinify API for image manipulation.
+//
+// Author:	"gwpp"
+// Email:	"ganwenpeng1993@163.com",
 package Tinify
 
 import "errors"
