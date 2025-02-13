@@ -371,7 +371,7 @@ func main() {
 					return err
 				}
 				// rawImage contains the raw image data; we push it out to STDOUT
-				n, err := io.WriteString(os.Stdout, string(rawImage))
+				n, err := os.Stdout.Write(rawImage)
 				if err != nil {
 					return err
 				}
