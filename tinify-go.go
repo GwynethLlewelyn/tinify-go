@@ -11,8 +11,8 @@ import (
 
 	"github.com/gwpp/tinify-go/tinify"
 	"github.com/rs/zerolog"
-	flag "github.com/spf13/pflag"
 	_ "github.com/joho/godotenv/autoload"
+	flag "github.com/spf13/pflag"
 )
 
 // Global variables for all possible calls.
@@ -157,11 +157,11 @@ func main() {
 
 		fmt.Fprintf(os.Stderr, 	"TINIFY_API_KEY found? %t\n", key != "")
 
-		fmt.Fprintln(os.Stderr,	"\n\nCOMMANDS:\n")
+		fmt.Fprintln(os.Stderr,	"\n\nCOMMANDS:")
 		for _, cmdHelp := range commands {
-			fmt.Fprintf(os.Stderr, "%s:\t%s\n", cmdHelp.Name, cmdHelp.Usage)
+			fmt.Fprintf(os.Stderr, "\t%s:\t%s\n", cmdHelp.Name, cmdHelp.Usage)
 		}
-		fmt.Fprintln(os.Stderr,	"\n\nFLAGS:\n");
+		fmt.Fprintln(os.Stderr,	"\n\nFLAGS:");
 		flag.PrintDefaults()
 	}
 
