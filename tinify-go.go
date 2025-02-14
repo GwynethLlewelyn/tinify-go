@@ -3,19 +3,23 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
+	"runtime/debug"
 	"strings"
+	"time"
+
 	"github.com/gwpp/tinify-go/tinify"
-	"github.com/urfave/cli/v2"
+	"github.com/rs/zerolog"
+	flag "github.com/spf13/pflag"
 )
 
 var (
-	debugLevel int			// debug level, as set by the user with -d -d -d ...
+	debugLevel int8			// debug level, as set by the user with -d -d...
 	imageName string		// filename or URL.
 	outputFileName string	// if set, it's the output filename; if not, well...
-	fileType string			// any set of webp, png, jpg
-	executeCommand int		// Command to be executed; if zero, it runs compress by default.
+	fileType string			// any set of webp, png, jpg, avif
+	help bool				// fake flag-like construct to write usage etc.
+	logger zerolog.Logger	// The main logger
 )
 
 // constants for setting a command to execute
@@ -26,7 +30,107 @@ const (
 	CONVERT
 )
 
+	// Define data structures for the command interpreter
+// Define a struct to hold command data
+type Command struct {
+	Name  string	// Command name
+	Usage string	// Usage/help for this command
+}
+
+// Map of all commands
+// Further info for each command could be added here
+var commands = map[string]Command{
+	"hello": {
+		Name:  "hello",
+		Usage: "Prints a hello message",
+	},
+	"goodbye": {
+		Name:  "goodbye",
+		Usage: "Prints a goodbye message",
+	},
+}
+
+// Define a function to execute a command
+func executeCommand(command string) {
+	// Get the command data from the map
+	cmd, ok := commands[command]
+	if !ok {
+		logger.Error().Msgf("unknown command %q", command)
+		return
+	}
+
+	// Execute the command
+	switch command {
+	case "hello":
+		helloWorld()
+	case "goodbye":
+		goodbyeWorld()
+	default:
+		fmt.Println("Unknown command")
+	}
+}
+
+
+
 func main() {
+	buildInfo, _ := debug.ReadBuildInfo()
+
+	// Grab flags
+	flag.Int8VarP(&debugLevel, "debug", "d", 4, "debug level; non-zero means no debug")
+	flag.StringVarP(&imageName, "input", "i", "test.jpg", "input filename")
+	flag.StringVarP(&outputFileName, "output", "o", "test.webp", "output filename")
+	flag.StringVarP(&fileType, "type", "o", "webp", "file type [webp, png, jpg, avif]")
+	flag.BoolVarP(&help, "help", "h", false, "show usage")
+
+	flag.Parse()
+
+	// Help message and default usage
+	var Usage = func() {
+		fmt.Fprintf(os.Stderr,	"Usage of %s:\n", os.Args[0])
+		fmt.Fprintln(os.Stderr,	"Compresses/resizes/converts images using the Tinify API.\n",
+								"See https://tinypng.com/developers\n",
+								"Tinify Go Packager version " + Tinify.VERSION)
+		fmt.Fprintf(os.Stderr,	"\nBuilt with %v\n", buildInfo.GoVersion)
+		fmt.Fprintln(os.Stderr,	"\n\nCOMMANDS:")
+		for _, cmdHelp := range commands {
+			fmt.Fprintf(os.Stderr, "%s:\t%s", cmdHelp.Name, cmdHelp.Usage)
+		}
+		fmt.Fprintln(os.Stderr,	"\n");
+		flag.PrintDefaults()
+	}
+
+	// if no args, print help
+	if len(os.Args) < 1 {
+		// this will not give us help for commands
+		Usage()
+		return
+	}
+
+
+	// Start zerolog logger, since we'll need it later
+	logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
+		Level(zerolog.Level(debugLevel)).	// typecast from int8 to zerolog.Level
+		With().
+		Timestamp().
+		Caller().
+		Int("pid", os.Getpid()).
+		Str("go_version", buildInfo.GoVersion).
+		Logger()
+
+	logger.Info().Msgf("Start debugging; tinify pkg version %s", Tinify.VERSION)
+
+	// Extract command from command line; it must be the first
+	command := flag.Arg(0)
+
+	// print usage for command
+	if help {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", commands[command].Name, commands[command].Usage)
+		return
+	}
+
+
+
+
 	// start app
 	app := &cli.App{
 		Name:		"tinify-go",
