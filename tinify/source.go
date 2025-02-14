@@ -128,10 +128,12 @@ func (s *Source) Resize(option *ResizeOption) error {
 	return nil
 }
 
-var convertMIMETypes = map[string]string{
+var ConvertMIMETypes = map[string]string{
 	"png":	"image/png",
 	"jpeg":	"image/jpeg",
 	"webp":	"image/webp",
+	"avif":	"image/avif",
+
 }
 
 // Extra type struct for JSONification purposes...
@@ -150,7 +152,7 @@ func (s *Source) Convert(options []string) error {
 		if i != 0 {
 			allOpts += ","
 		}
-		allOpts += convertMIMETypes[option]
+		allOpts += ConvertMIMETypes[option]
 	}
 	// Should never happen...
 	if len(allOpts) == 0 {
