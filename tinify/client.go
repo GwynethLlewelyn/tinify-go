@@ -15,7 +15,6 @@ import (
 const API_ENDPOINT = "https://api.tinify.com"
 
 var tinifyProxyTransport *http.Transport
-// func(*http.Request) (*url.URL, error)
 
 // Type for the TinyPNG API client.
 type Client struct {
@@ -39,8 +38,7 @@ func (c *Client) Request(method string, urlRequest string, body interface{}) (re
 		urlRequest = API_ENDPOINT + urlRequest
 	}
 	// Deal with HTTP(S) proxy for this request.
-	// var error err
-	tinifyProxyTransport.Proxy = c.reconfigureProxyTransport(urlRequest)
+	tinifyProxyTransport.Proxy = c.reconfigureProxyTransport("")	// the parameter is possibly irrelevant
 
 	httpClient := http.Client{
 		Transport: tinifyProxyTransport,
@@ -98,16 +96,27 @@ func (c *Client) reconfigureProxyTransport(proxyURL string) (func(*http.Request)
 		}
 		reqProxy = http.ProxyURL(tempURL)
 	}
-	// Third attempt: fallback to environment variables instead
+
+	// Third attempt: check if the passed proxyURL value is any good:
+	if reqProxy == nil && len(proxyURL) > 0 {
+		tempURL, err := url.Parse(proxyURL)
+			if err != nil {
+				log.Printf("proxyURL parameter passed for this client must be a valid URL; got %q which gives error: %s", proxyURL, err)
+				return nil
+			}
+			reqProxy = http.ProxyURL(tempURL)
+		}
+
+	// Fourth attempt: fallback to environment variables instead
 	if reqProxy == nil {
 		reqProxy = http.ProxyFromEnvironment
 	}
-
+	// Note: if reqProxy is *still* `nil`, that's correct and appropriate for *no proxy*
 	return reqProxy
 }
 
 // Tinify module initialisation.
-// Currently just initialises tinifyProxyTransport as the equivalent
+// Currently just initialises tinifyProxyTransport as the default-
 func init() {
 	// initialise the transport; instructions say that transports should be reused, not
 	// created on demand; by default, uses whatever proxies are defined on the environment.
