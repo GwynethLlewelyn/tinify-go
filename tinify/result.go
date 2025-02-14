@@ -42,7 +42,7 @@ func (r *Result) Size() int64 {
 		return 0
 	}
 
-	size, _ := strconv.Atoi(s[0])
+	size, _ := strconv.Atoi(s[0])	// Atoi returns 0 if error
 	return int64(size)
 }
 
