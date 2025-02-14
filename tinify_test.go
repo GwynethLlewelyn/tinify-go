@@ -1,18 +1,15 @@
 package main
 
 import (
+	"os"
 	"testing"
 
-//	"io/ioutil"
-	"os"
-
 	"github.com/gwpp/tinify-go/tinify"
+	_ "github.com/joho/godotenv/autoload"
 )
 
-const Key = "rcPZm3Zrg_1DbjYtV6AXM_-53Jg9wuWB"
-
 func TestCompressFromFile(t *testing.T) {
-	Tinify.SetKey(Key)
+	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 	source, err := Tinify.FromFile("./test.jpg")
 	if err != nil {
 		t.Error(err)
@@ -28,7 +25,7 @@ func TestCompressFromFile(t *testing.T) {
 }
 
 func TestCompressFromBuffer(t *testing.T) {
-	Tinify.SetKey(Key)
+	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 
 	buf, err := os.ReadFile("./test.jpg")
 	if err != nil {
@@ -50,7 +47,7 @@ func TestCompressFromBuffer(t *testing.T) {
 }
 
 func TestCompressFromUrl(t *testing.T) {
-	Tinify.SetKey(Key)
+	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 	url := "http://pic.tugou.com/realcase/1481255483_7311782.jpg"
 	source, err := Tinify.FromUrl(url)
 	if err != nil {
@@ -66,7 +63,7 @@ func TestCompressFromUrl(t *testing.T) {
 }
 
 func TestResizeFromFile(t *testing.T) {
-	Tinify.SetKey(Key)
+	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 	source, err := Tinify.FromFile("./test.jpg")
 	if err != nil {
 		t.Error(err)
@@ -93,7 +90,7 @@ func TestResizeFromFile(t *testing.T) {
 }
 
 func TestResizeFromBuffer(t *testing.T) {
-	Tinify.SetKey(Key)
+	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 
 	buf, err := os.ReadFile("./test.jpg")
 	if err != nil {
@@ -124,7 +121,7 @@ func TestResizeFromBuffer(t *testing.T) {
 }
 
 func TestResizeFromUrl(t *testing.T) {
-	Tinify.SetKey(Key)
+	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 	url := "http://pic.tugou.com/realcase/1481255483_7311782.jpg"
 	source, err := Tinify.FromUrl(url)
 	if err != nil {
