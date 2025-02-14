@@ -88,7 +88,7 @@ func main() {
 	commands = allCommands{
 		"compress": {
 			Name:	"compress",
-			Usage:	"You can upload any image to the Tinify API to compress it. We will automatically detect the type of image (" + strings.Join(types, ", ") + " and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.",
+			Usage:	"You can upload any image to the Tinify API to compress it. We will automatically detect the type of image (" + strings.Join(types, ", ") + ") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.",
 			Action: compress,
 		},
 		"resize": {
@@ -103,17 +103,8 @@ func main() {
 		},
 		"help": {
 			Name:	"help",
-			Usage:	"briefly explains command usage",
-			Action:	func () int {
-				explainCommand := flag.Arg(0)
-				if _, ok := commands[explainCommand]; ok {
-					fmt.Fprintf(os.Stderr, "%s:\t%s\n", commands[explainCommand].Name, commands[explainCommand].Usage)
-					return 0
-				}
-				// command unknown or empty, so print the usage.
-				flag.Usage()
-				return 1
-			},
+			Usage:	"Briefly explains command usage.",
+			Action:	helpUsage,
 		},
 	}
 
@@ -147,28 +138,28 @@ func main() {
 	flag.Parse()
 
 	// Help message and default usage
-	var Usage = func() {
+	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,	"Usage of %s:\n", os.Args[0])
-		fmt.Fprintln(os.Stderr,	"Compresses/resizes/converts images using the Tinify API.",
-								"See https://tinypng.com/developers",
-								"This software is neither affiliated with, nor endorsed by Tinify B.V.",
-								"Tinify Go Package version " + Tinify.VERSION)
-		fmt.Fprintf(os.Stderr,	"\nBuilt with %v\n", buildInfo.GoVersion)
+		fmt.Fprint(os.Stderr,	"Compresses/resizes/converts images using the Tinify API.\n" +
+								"See https://tinypng.com/developers\n" +
+								"This software is neither affiliated with, nor endorsed by Tinify B.V.\n",
+								"Tinify Go Package version " + Tinify.VERSION + "\n")
+		fmt.Fprintf(os.Stderr,	"Built with %v\n", buildInfo.GoVersion)
 
 		fmt.Fprintf(os.Stderr, 	"TINIFY_API_KEY found? %t\n", key != "")
 
-		fmt.Fprintln(os.Stderr,	"\n\nCOMMANDS:")
+		fmt.Fprintln(os.Stderr,	"\nCOMMANDS:")
 		for _, cmdHelp := range commands {
-			fmt.Fprintf(os.Stderr, "\t%s:\t%s\n", cmdHelp.Name, cmdHelp.Usage)
+			fmt.Fprintf(os.Stderr, "- %s:\t%s\n\n", cmdHelp.Name, cmdHelp.Usage)
 		}
-		fmt.Fprintln(os.Stderr,	"\n\nFLAGS:");
+		fmt.Fprintln(os.Stderr,	"FLAGS:");
 		flag.PrintDefaults()
 	}
 
 	// If no args, print help.
 	if len(os.Args) < 1 {
 		// this will not give us help for commands
-		Usage()
+		flag.Usage()
 		return
 	}
 
@@ -179,8 +170,8 @@ func main() {
 		With().
 		Timestamp().
 		Caller().
-		Int("pid", os.Getpid()).
-		Str("go_version", buildInfo.GoVersion).
+//		Int("pid", os.Getpid()).
+//		Str("go_version", buildInfo.GoVersion).
 		Logger()
 
 	logger.Info().Msgf("Start debugging; tinify pkg version %s", Tinify.VERSION)
@@ -341,4 +332,16 @@ func resize() int {
 // Compress is the default.
 func compress() int {
 	return callAPI()
+}
+
+func helpUsage() int {
+	explainCommand := flag.Arg(1)
+	logger.Debug().Msgf("explaining command %q:\n", explainCommand)
+	if _, ok := commands[explainCommand]; ok {
+		fmt.Fprintf(os.Stderr, "- %s:\t%s\n", commands[explainCommand].Name, commands[explainCommand].Usage)
+		return 0
+	}
+	// command unknown or empty, so print the usage.
+	flag.Usage()
+	return 1
 }
