@@ -192,7 +192,7 @@ func main() {
 			logger.Fatal().Msg("no valid file types found")
 		}
 		// A very inefficient way of checking if all file types are valid O(n).
-		// TODO(Tasker): See if there is already a library function for this,
+		// TODO(gwyneth): See if there is already a library function for this,
 		// or use a different, linear approach.
 		for _, aFoundType := range typesFound {
 			if !slices.Contains(types, aFoundType) {
