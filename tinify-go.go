@@ -68,12 +68,21 @@ type allCommands map[string]Command
 var commands allCommands
 
 
-// Define a function to execute a command.
-func executeCommand(command string) int {
+// Check if this command exists and is a valid one
+func checkCommand(command string) bool {
 	// Check if command exists in map
 	if _, ok := commands[command]; !ok {
-		logger.Debug().Msgf("invalid or unknown command %q", command)
+		logger.Error().Msgf("invalid or unknown command %q", command)
 		flag.Usage()
+		return false
+	}
+	logger.Debug().Msgf("command %q is known", command)
+	return true
+}
+
+// Define a function to execute a command.
+func executeCommand(command string) int {
+	if !checkCommand(command) {
 		return 1
 	}
 
@@ -127,6 +136,9 @@ func main() {
 	flag.Int64VarP(&height, "height", "g", 0, "destination image height")
 	flag.BoolVarP(&help, "help", "h", false, "show usage")
 
+	// Note: the following tests occur before the logger is available.
+	// As such, messages are printed to os.Stderr instead.
+
 	// Last chance to get a valid API key! See if it was passed via flags (not recommended)
 	if key == "" {
 		flag.StringVarP(&key, "key", "k", "", "Tinify API key (ideally read from environment)")
@@ -135,6 +147,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, "the Tinify API key was not found anywhere (tried environment and CLI flags); cannot proceed")
 			os.Exit(2)
 		}
+	}
+
+	// Check if key is somewhat valid, i.e. has a decent amount of chars:
+	if len(key) < 5 {
+		fmt.Fprintf(os.Stderr, "invalid Tinify API %q; too short — please check your key and try again\n", key)
+		os.Exit(2)
 	}
 
 	flag.Parse()
@@ -165,7 +183,7 @@ func main() {
 		return
 	}
 
-	// Start zerolog logger, since we'll need it later.
+	// Start zerolog logger.
 	// We're also using it for pretty-printing to the console.
 	logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
 		Level(zerolog.Level(debugLevel)).	// typecast from int8 to zerolog.Level
@@ -176,18 +194,36 @@ func main() {
 //		Str("go_version", buildInfo.GoVersion).
 		Logger()
 
-	logger.Info().Msgf("start debugging; tinify pkg version %s", Tinify.VERSION)
+	// Note that the zerolog logger is *always* returned; if it cannot write to the log
+	// for some reason, that error will be handled by the zerolog passage, thus
+	// the simple `Debug()` call here: if this _fails_, we've not done anything yet with
+	// the images, and can safely abort.
+	logger.Debug().Msgf("logger started; tinify pkg version %s", Tinify.VERSION)
 
 	// Extract command from command line; it must be the first parameter.
 	command := flag.Arg(0)
 
-	// note that "help" is a special command as well.
+	// Do some basic error-checking on flag parameters.
+	// TODO(gwyneth): Check if parameters are appropriate for this specific command,
+	//   since not all commands take all parameters.
+
+	// 1. Note that "help" is a special command as well.
 	if help {
 		command = "help"
 	}
 
-	// Do some basic error-checking on flag parameters.
-	// 1. Check if the type(s) are all valid:
+	// 2. Default command, if not found on the command line, is "compress".
+	// This is to conform to TinyPNG specifications.
+	if command == "" {
+		command = "compress"
+	}
+
+	// 3. Every other command is/was garbage and needs to be flagged as error.
+	if !checkCommand(command) {
+		logger.Error().Msgf("invalid command %q", command)
+		os.Exit(1)
+	}
+	// 4. Check if the type(s) are all valid:
 	if fileType != "" {
 		typesFound := strings.Split(fileType, ",")
 		if typesFound == nil {
@@ -208,7 +244,7 @@ func main() {
 		logger.Debug().Msg("no file type parameters found")
 	}
 
-	// 2. Check if the resizing method is a valid one.
+	// 5. Check if the resizing method is a valid one.
 	// First check if it's empty:
 	if len(method) == 0 {
 		method = Tinify.ResizeMethodScale	// scale is default
@@ -219,8 +255,10 @@ func main() {
 	}
 
 	// Prepare in advance some variables.
-	// Set the API key:
+
+	// Set the API key (we've already checked if it is valid & exists):
 	Tinify.SetKey(key)
+	logger.Debug().Msgf("a TinyPNG key was found: [...%s]", key[len(key)-4:])
 
 	// Input file may be either an image filename or an URL; TinyPNG will handle both-
 	// Since `://` is hardly a valid filename, but a requirement for being an URL;
