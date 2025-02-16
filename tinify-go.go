@@ -72,11 +72,13 @@ var commands allCommands
 func executeCommand(command string) int {
 	// Check if command exists in map
 	if _, ok := commands[command]; !ok {
+		logger.Debug().Msgf("invalid or unknown command %q", command)
 		flag.Usage()
 		return 1
 	}
 
 	// execute function for this command.
+	logger.Debug().Msgf("invoking action for command %q: %v", command, commands[command].Action)
 	return commands[command].Action()
 }
 
