@@ -117,7 +117,7 @@ func main() {
 
 	// Grab flags
 	flag.Int8VarP(&debugLevel, "debug", "d", 4, "debug level; non-zero means no debug")
-	flag.StringVarP(&imageName, "input", "i", "test.jpg", "input filename")
+	flag.StringVarP(&imageName, "input", "i", "", "input filename")
 	flag.StringVarP(&outputFileName, "output", "o", "test.webp", "output filename")
 	flag.StringVarP(&fileType, "type", "t", "webp", "file type [" + strings.Join(types, ", ") + "]")
 	flag.StringVarP(&method, "method", "m", Tinify.ResizeMethodScale, "resizing method [" + strings.Join(methods, ", ") + "]")
@@ -174,7 +174,7 @@ func main() {
 //		Str("go_version", buildInfo.GoVersion).
 		Logger()
 
-	logger.Info().Msgf("Start debugging; tinify pkg version %s", Tinify.VERSION)
+	logger.Info().Msgf("start debugging; tinify pkg version %s", Tinify.VERSION)
 
 	// Extract command from command line; it must be the first parameter.
 	command := flag.Arg(0)
@@ -224,19 +224,27 @@ func main() {
 	// Since `://` is hardly a valid filename, but a requirement for being an URL;
 	// handle URL later.
 	// Note that if imageName is unset, stdin is assumed, even if it might not yet work.
-	if !strings.Contains(imageName, "://") {
-		f, err = os.Open(imageName)
-		if err != nil {
-			logger.Fatal().Err(err)
+	logger.Debug().Msgf("opening input file for reading: %q", imageName)
+	if imageName == "" || !strings.Contains(imageName, "://") {
+		if imageName == "" {
+			// empty filename; use stdin
+			f = os.Stdin
+			logger.Debug().Msg("empty filename; read from stdin instead")
+		} else {
+			// check to see if we can open this file:
+			f, err = os.Open(imageName)
+			if err != nil {
+				logger.Fatal().Err(err)
+			}
+			logger.Debug().Msgf("%q sucessfully opened", imageName)
 		}
-
 		// Get the image file from disk/stdin.
 		rawImage, err = io.ReadAll(f)
 		if err != nil {
 			logger.Fatal().Err(err)
 		}
 
-		logger.Debug().Msgf("Arg: %s, Size %d\n", imageName, len(rawImage))
+		logger.Debug().Msgf("arg: %q (empty means stdin), size %d", imageName, len(rawImage))
 
 		// Now call the TinyPNG API
 		source, err = Tinify.FromBuffer(rawImage)
@@ -255,7 +263,7 @@ func main() {
 	// Pass the non-flag arguments to the command;
 	execStatus := executeCommand(command)
 	if execStatus != 0 {
-		logger.Error().Msgf("%s returned with error code %d\n", os.Args[0], execStatus)
+		logger.Error().Msgf("%s returned with error code %d", os.Args[0], execStatus)
 		os.Exit(execStatus)
 	}
 } // main
@@ -269,8 +277,11 @@ var (
 
 // All-purpose API call. Whatever is done, it happens on the globals.
 func callAPI() int {
+	logger.Debug().Msg("inside callAPI()")
+
 	// If we have no explicit output filename, write directly to stdout
 	if len(outputFileName) == 0 {
+		logger.Debug().Msg("no output filename; writing to stdout instead")
 		rawImage, err := source.ToBuffer()
 		if err != nil {
 			logger.Error().Err(err)
@@ -283,11 +294,11 @@ func callAPI() int {
 			return 1
 		}
 
-		logger.Debug().Msgf("wrote %d byte(s) to stdout\n", n)
+		logger.Debug().Msgf("wrote %d byte(s) to stdout", n)
 		return 0
 	}
 
-	logger.Debug().Msgf("opening file %q for outputting image\n", outputFileName)
+	logger.Debug().Msgf("opening file %q for outputting image", outputFileName)
 
 	// write to file, we have a special function for that already defined:
 	err = source.ToFile(outputFileName)
@@ -296,24 +307,25 @@ func callAPI() int {
 		return 1
 	}
 
-	logger.Debug().Msgf("opening file %q for outputting image\n", outputFileName)
-
 	return 0
 }
 
 // Tries to get a list
 func convert() int {
+	logger.Debug().Msg("convert called")
 	return callAPI()
 }
 
 // Resizes image, given a width and a height.
 func resize() int {
 	// width and height are globals.
+	logger.Debug().Msgf("resize called with width %d px and height %d px", width, height)
 	if width == 0 && height == 0 {
 		logger.Error().Msg("width and height cannot be simultaneously zero")
 		return 2
 	}
 
+	logger.Debug().Msg("now calling source.Resize()")
 	// method is a global too.
 	err := source.Resize(&Tinify.ResizeOption{
 		Method: Tinify.ResizeMethod(method),
@@ -331,12 +343,13 @@ func resize() int {
 
 // Compress is the default.
 func compress() int {
+	logger.Debug().Msg("compress called")
 	return callAPI()
 }
 
 func helpUsage() int {
 	explainCommand := flag.Arg(1)
-	logger.Debug().Msgf("explaining command %q:\n", explainCommand)
+	logger.Debug().Msgf("explaining command %q:", explainCommand)
 	if _, ok := commands[explainCommand]; ok {
 		fmt.Fprintf(os.Stderr, "- %s:\t%s\n", commands[explainCommand].Name, commands[explainCommand].Usage)
 		return 0
