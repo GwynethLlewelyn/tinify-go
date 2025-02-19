@@ -136,25 +136,6 @@ func main() {
 	flag.Int64VarP(&height, "height", "g", 0, "destination image height")
 	flag.BoolVarP(&help, "help", "h", false, "show usage")
 
-	// Note: the following tests occur before the logger is available.
-	// As such, messages are printed to os.Stderr instead.
-
-	// Last chance to get a valid API key! See if it was passed via flags (not recommended)
-	if key == "" {
-		flag.StringVarP(&key, "key", "k", "", "Tinify API key (ideally read from environment)")
-		if key == "" {
-			// No key found anywhere, abort.
-			fmt.Fprintln(os.Stderr, "the Tinify API key was not found anywhere (tried environment and CLI flags); cannot proceed")
-			os.Exit(2)
-		}
-	}
-
-	// Check if key is somewhat valid, i.e. has a decent amount of chars:
-	if len(key) < 5 {
-		fmt.Fprintf(os.Stderr, "invalid Tinify API %q; too short — please check your key and try again\n", key)
-		os.Exit(2)
-	}
-
 	flag.Parse()
 
 	// Help message and default usage
@@ -234,7 +215,7 @@ func main() {
 		// or use a different, linear approach.
 		for _, aFoundType := range typesFound {
 			if !slices.Contains(types, aFoundType) {
-				logger.Error().Msgf("invalid file format: %s", aFoundType)
+				logger.Fatal().Msgf("invalid file format: %s", aFoundType)
 				os.Exit(3)
 			}
 		}
@@ -250,11 +231,27 @@ func main() {
 		method = Tinify.ResizeMethodScale	// scale is default
 	} else if !slices.Contains(methods, method) {
 		// Checked if it's one of the valid methods; if not, abort.
-		logger.Error().Msgf("invalid resize method: %s", method)
+		logger.Fatal().Msgf("invalid resize method: %s", method)
 		os.Exit(3)
 	}
 
 	// Prepare in advance some variables.
+
+	// Last chance to get a valid API key! See if it was passed via flags (not recommended)
+	if key == "" {
+		flag.StringVarP(&key, "key", "k", "", "Tinify API key (ideally read from environment)")
+		if key == "" {
+			// No key found anywhere, abort.
+			logger.Fatal().Msg("the Tinify API key was not found anywhere (tried environment and CLI flags); cannot proceed")
+			os.Exit(2)
+		}
+	}
+
+	// Check if key is somewhat valid, i.e. has a decent amount of chars:
+	if len(key) < 5 {
+		logger.Fatal().Msgf("invalid Tinify API %q; too short — please check your key and try again\n", key)
+		os.Exit(2)
+	}
 
 	// Set the API key (we've already checked if it is valid & exists):
 	Tinify.SetKey(key)
@@ -269,7 +266,8 @@ func main() {
 		if imageName == "" {
 			// empty filename; use stdin
 			f = os.Stdin
-			logger.Debug().Msg("empty filename; read from stdin instead")
+			// Logging to console, so let the user knows that as well
+			logger.Info().Msg("empty filename; reading from console/stdin instead")
 		} else {
 			// check to see if we can open this file:
 			f, err = os.Open(imageName)
