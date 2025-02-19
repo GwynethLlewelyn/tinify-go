@@ -128,8 +128,8 @@ func main() {
 
 	// Grab flags
 	flag.Int8VarP(&debugLevel, "debug", "d", 4, "debug level; non-zero means no debug")
-	flag.StringVarP(&imageName, "input", "i", "", "input filename")
-	flag.StringVarP(&outputFileName, "output", "o", "test.webp", "output filename")
+	flag.StringVarP(&imageName, "input", "i", "", "input filename (empty=STDIN)")
+	flag.StringVarP(&outputFileName, "output", "o", "", "output filename (empty=STDOUT)")
 	flag.StringVarP(&fileType, "type", "t", "webp", "file type [" + strings.Join(types, ", ") + "]")
 	flag.StringVarP(&method, "method", "m", Tinify.ResizeMethodScale, "resizing method [" + strings.Join(methods, ", ") + "]")
 	flag.Int64VarP(&width, "width", "w", 0, "destination image width")
@@ -147,7 +147,12 @@ func main() {
 								"Tinify Go Package version " + Tinify.VERSION + "\n")
 		fmt.Fprintf(os.Stderr,	"Built with %v\n", buildInfo.GoVersion)
 
-		fmt.Fprintf(os.Stderr, 	"TINIFY_API_KEY found? %t\n", key != "")
+		if len(key) < 5 {
+			fmt.Fprintln(os.Stderr,
+				"TINIFY_API_KEY not set in environment/command-line arguments, or key is invalid")
+		} else {
+			fmt.Fprintf(os.Stderr, 	"TINIFY_API_KEY found with last digits %q\n", key[len(key)-4:])
+		}
 
 		fmt.Fprintln(os.Stderr,	"\nCOMMANDS:")
 		for _, cmdHelp := range commands {
@@ -239,10 +244,15 @@ func main() {
 
 	// Last chance to get a valid API key! See if it was passed via flags (not recommended)
 	if key == "" {
-		flag.StringVarP(&key, "key", "k", "", "Tinify API key (ideally read from environment)")
+		flag.StringVarP(&key, "key", "k", "", "Tinify API key (ideally read from environment TINIFY_API_KEY)")
 		if key == "" {
 			// No key found anywhere, abort.
-			logger.Fatal().Msg("the Tinify API key was not found anywhere (tried environment and CLI flags); cannot proceed")
+			logger.Fatal().Msg("the Tinify API key was not found anywhere (tried environment TINIFY_API_KEY and CLI flags); cannot proceed, aborting")
+			// The best we can do at this stage is call help
+			if execStatus := executeCommand("help"); execStatus != 0 {
+				logger.Error().Msgf("help returned with error code %d", execStatus)
+				os.Exit(execStatus)
+			}
 			os.Exit(2)
 		}
 	}
