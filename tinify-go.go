@@ -87,7 +87,7 @@ func executeCommand(command string) int {
 	}
 
 	// execute function for this command.
-	logger.Debug().Msgf("invoking action for command %q: %v", command, commands[command].Action)
+	logger.Debug().Msgf("invoking action for command %q", command)
 	return commands[command].Action()
 }
 
