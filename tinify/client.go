@@ -2,8 +2,8 @@ package Tinify
 
 import (
 	"bytes"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -18,9 +18,9 @@ var tinifyProxyTransport *http.Transport
 
 // Type for the TinyPNG API client.
 type Client struct {
-	options map[string]interface{}
-	key     string	// TinyPNG API key.
-	proxy	string	// Specific HTTP(S) proxy server for this client.
+	options map[string]any
+	key     string // TinyPNG API key.
+	proxy   string // Specific HTTP(S) proxy server for this client.
 }
 
 // Creates a new TinyPNG API client by allocating some memory for it.
@@ -31,14 +31,14 @@ func NewClient(key string) (c *Client, err error) {
 }
 
 // HTTP(S) request which can either send raw bytes (for an image) and/or a JSON-formatted request.
-func (c *Client) Request(method string, urlRequest string, body interface{}) (response *http.Response, err error) {
+func (c *Client) Request(method string, urlRequest string, body any) (response *http.Response, err error) {
 	// NOTE: this should go through a bit more validation. We are deferring such
 	// validation to the Go library functions that do the actual request.
-	if !strings.HasPrefix(urlRequest, "https") {	// shouldn't we check for uppercase as well? (gwyneth 20231111)
+	if !strings.HasPrefix(urlRequest, "https") { // shouldn't we check for uppercase as well? (gwyneth 20231111)
 		urlRequest = API_ENDPOINT + urlRequest
 	}
 	// Deal with HTTP(S) proxy for this request.
-	tinifyProxyTransport.Proxy = c.reconfigureProxyTransport("")	// the parameter is possibly irrelevant
+	tinifyProxyTransport.Proxy = c.reconfigureProxyTransport("") // the parameter is possibly irrelevant
 
 	httpClient := http.Client{
 		Transport: tinifyProxyTransport,
@@ -52,11 +52,11 @@ func (c *Client) Request(method string, urlRequest string, body interface{}) (re
 	// Clunky! But it works :-)
 	switch b := body.(type) {
 	case []byte:
-		if len(b/*body.([]byte)*/) > 0 {
-			req.Body = io.NopCloser(bytes.NewReader(b/*body.([]byte)*/))
+		if len(b /*body.([]byte)*/) > 0 {
+			req.Body = io.NopCloser(bytes.NewReader(b /*body.([]byte)*/))
 		}
-	case map[string]interface{}:
-		if len(b/*body.(map[string]interface{})*/) > 0 {
+	case map[string]any:
+		if len(b /*body.(map[string]interface{})*/) > 0 {
 			body2, err2 := json.Marshal(body)
 			if err2 != nil {
 				err = err2
@@ -76,8 +76,8 @@ func (c *Client) Request(method string, urlRequest string, body interface{}) (re
 }
 
 // Attempts to reconfigure an _existing_ Transport with a proxy.
-func (c *Client) reconfigureProxyTransport(proxyURL string) (func(*http.Request) (*url.URL, error)) {
-	reqProxy := http.ProxyURL(nil)	// set to no proxy first.
+func (c *Client) reconfigureProxyTransport(proxyURL string) func(*http.Request) (*url.URL, error) {
+	reqProxy := http.ProxyURL(nil) // set to no proxy first.
 	// check if our global variable has been set:
 	if len(proxy) > 0 {
 		tempURL, err := url.Parse(proxy)
@@ -100,12 +100,12 @@ func (c *Client) reconfigureProxyTransport(proxyURL string) (func(*http.Request)
 	// Third attempt: check if the passed proxyURL value is any good:
 	if reqProxy == nil && len(proxyURL) > 0 {
 		tempURL, err := url.Parse(proxyURL)
-			if err != nil {
-				log.Printf("proxyURL parameter passed for this client must be a valid URL; got %q which gives error: %s", proxyURL, err)
-				return nil
-			}
-			reqProxy = http.ProxyURL(tempURL)
+		if err != nil {
+			log.Printf("proxyURL parameter passed for this client must be a valid URL; got %q which gives error: %s", proxyURL, err)
+			return nil
 		}
+		reqProxy = http.ProxyURL(tempURL)
+	}
 
 	// Fourth attempt: fallback to environment variables instead
 	if reqProxy == nil {
