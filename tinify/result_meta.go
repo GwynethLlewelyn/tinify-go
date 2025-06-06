@@ -1,3 +1,6 @@
+// Retrieves TinyPNG-specific header tags, converting them to the proper values
+// as returned by the API. ResultMeta **must** be initialised with the headers
+// received from the API call.
 package Tinify
 
 import (
