@@ -1,38 +1,39 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"net/mail"
 	"os"
-	"runtime/debug"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/gwpp/tinify-go/tinify"
-	"github.com/rs/zerolog"
 	_ "github.com/joho/godotenv/autoload"
-	flag "github.com/spf13/pflag"
+	"github.com/rs/zerolog"
+	"github.com/urfave/cli/v3"
 )
 
 // Global variables for all possible calls.
 
 var (
-	debugLevel int8			// Debug level, as set by the user; 0 = debug, > 1 info only and above.
-	imageName string		// Filename or URL.
-	outputFileName string	// If set, it's the output filename; if not, well...
-	fileType string			// Any set of webp, png, jpg, avif.
-	help = false			// Fake flag-like construct to write usage etc.
-	key string				// TinyPNG API key; can be on environment or read from .env.
-	logger zerolog.Logger	// The main logger. Probably not necessary.
-	method string			// Resizing method (scale, fit, cover, thumb).
-	width int64				// Image width  (for resize operations).
-	height int64			// Image height (  "   "      "    "  ).
+	debugLevel     int8           // Debug level, as set by the user; 0 = debug, > 1 info only and above.
+	imageName      string         // Filename or URL.
+	outputFileName string         // If set, it's the output filename; if not, well...
+	fileType       string         // Any set of webp, png, jpg, avif.
+	help           = false        // Fake flag-like construct to write usage etc.
+	key            string         // TinyPNG API key; can be on environment or read from .env.
+	logger         zerolog.Logger // The main logger. Probably not necessary.
+	method         string         // Resizing method (scale, fit, cover, thumb).
+	width          int64          // Image width  (for resize operations).
+	height         int64          // Image height (  "   "      "    "  ).
 )
 
 // Tinify API supported file types.
 // Add more when TinyPNG supports additional types.
-var types = []string {
+var types = []string{
 	"png",
 	"jpeg",
 	"webp",
@@ -41,85 +42,19 @@ var types = []string {
 
 // Available image resizing methods.
 // Add more when TinyPNG supports additional types.
-var methods = []string {
+var methods = []string{
 	Tinify.ResizeMethodScale,
 	Tinify.ResizeMethodFit,
 	Tinify.ResizeMethodCover,
 	Tinify.ResizeMethodThumb,
 }
 
-// Data interpreter structure.
-// Minimalist scenario assuming just one command at the time, calling one action.
-// Flags are globals, parsed as a side-effect.
-
-// Struct to hold command data.
-type Command struct {
-	Name  string		// Command name.
-	Usage string		// Usage/help for this command.
-	Action func()int	// Function to call for this command.
-}
-
-// Type for all commands.
-// Not strictly necessary, but useful later on.
-type allCommands map[string]Command
-
-// Map of all commands; global due to scoping issues.
-// Further info for each command could be added here, e.g. aliases, etc.
-var commands allCommands
-
-
-// Check if this command exists and is a valid one
-func checkCommand(command string) bool {
-	// Check if command exists in map
-	if _, ok := commands[command]; !ok {
-		logger.Error().Msgf("invalid or unknown command %q", command)
-		flag.Usage()
-		return false
-	}
-	logger.Debug().Msgf("command %q is known", command)
-	return true
-}
-
-// Define a function to execute a command.
-func executeCommand(command string) int {
-	if !checkCommand(command) {
-		return 1
-	}
-
-	// execute function for this command.
-	logger.Debug().Msgf("invoking action for command %q", command)
-	return commands[command].Action()
-}
-
-//
 // Main starts here.
-//
 func main() {
-	// Init commands here, to avoid recursivity.
-	commands = allCommands{
-		"compress": {
-			Name:	"compress",
-			Usage:	"You can upload any image to the Tinify API to compress it. We will automatically detect the type of image (" + strings.Join(types, ", ") + ") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.",
-			Action: compress,
-		},
-		"resize": {
-			Name:	"resize",
-			Usage:	"Use the API to create resized versions of your uploaded images. By letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.\nAvailable compression methods are: " + strings.Join(methods, ", "),
-			Action: resize,
-		},
-		"convert": {
-			Name:	"convert",
-			Usage:	"You can use the API to convert your images to your desired image type. Tinify currently supports converting between: " + strings.Join(types, ",") + ".\n When you provide more than one image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
-			Action: convert,
-		},
-		"help": {
-			Name:	"help",
-			Usage:	"Briefly explains command usage.",
-			Action:	helpUsage,
-		},
+	// Set up the version/runtime/debug-related variables, and cache them.
+	if err := initVersionInfo(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize version info: %v\n", err)
 	}
-
-	buildInfo, _ := debug.ReadBuildInfo()
 
 	// Check if we have the API key on environment.
 	// Note that we are using godotenv/autoload to automatically retrieve .env
@@ -130,8 +65,8 @@ func main() {
 	flag.Int8VarP(&debugLevel, "debug", "d", 4, "debug level; non-zero means no debug")
 	flag.StringVarP(&imageName, "input", "i", "", "input filename (empty=STDIN)")
 	flag.StringVarP(&outputFileName, "output", "o", "", "output filename (empty=STDOUT)")
-	flag.StringVarP(&fileType, "type", "t", "webp", "file type [" + strings.Join(types, ", ") + "]")
-	flag.StringVarP(&method, "method", "m", Tinify.ResizeMethodScale, "resizing method [" + strings.Join(methods, ", ") + "]")
+	flag.StringVarP(&fileType, "type", "t", "webp", "file type ["+strings.Join(types, ", ")+"]")
+	flag.StringVarP(&method, "method", "m", Tinify.ResizeMethodScale, "resizing method ["+strings.Join(methods, ", ")+"]")
 	flag.Int64VarP(&width, "width", "w", 0, "destination image width")
 	flag.Int64VarP(&height, "height", "g", 0, "destination image height")
 	flag.BoolVarP(&help, "help", "h", false, "show usage")
@@ -140,25 +75,25 @@ func main() {
 
 	// Help message and default usage
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr,	"Usage of %s:\n", os.Args[0])
-		fmt.Fprint(os.Stderr,	"Compresses/resizes/converts images using the Tinify API.\n" +
-								"See https://tinypng.com/developers\n" +
-								"This software is neither affiliated with, nor endorsed by Tinify B.V.\n",
-								"Tinify Go Package version " + Tinify.VERSION + "\n")
-		fmt.Fprintf(os.Stderr,	"Built with %v\n", buildInfo.GoVersion)
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		fmt.Fprint(os.Stderr, "Compresses/resizes/converts images using the Tinify API.\n"+
+			"See https://tinypng.com/developers\n"+
+			"This software is neither affiliated with, nor endorsed by Tinify B.V.\n",
+			"Tinify Go Package version "+Tinify.VERSION+"\n")
+		fmt.Fprintf(os.Stderr, "Built with %v\n", buildInfo.GoVersion)
 
 		if len(key) < 5 {
 			fmt.Fprintln(os.Stderr,
 				"TINIFY_API_KEY not set in environment/command-line arguments, or key is invalid")
 		} else {
-			fmt.Fprintf(os.Stderr, 	"TINIFY_API_KEY found with last digits %q\n", key[len(key)-4:])
+			fmt.Fprintf(os.Stderr, "TINIFY_API_KEY found with last digits %q\n", key[len(key)-4:])
 		}
 
-		fmt.Fprintln(os.Stderr,	"\nCOMMANDS:")
+		fmt.Fprintln(os.Stderr, "\nCOMMANDS:")
 		for _, cmdHelp := range commands {
 			fmt.Fprintf(os.Stderr, "- %s:\t%s\n\n", cmdHelp.Name, cmdHelp.Usage)
 		}
-		fmt.Fprintln(os.Stderr,	"FLAGS:");
+		fmt.Fprintln(os.Stderr, "FLAGS:")
 		flag.PrintDefaults()
 	}
 
@@ -172,12 +107,12 @@ func main() {
 	// Start zerolog logger.
 	// We're also using it for pretty-printing to the console.
 	logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
-		Level(zerolog.Level(debugLevel)).	// typecast from int8 to zerolog.Level
+		Level(zerolog.Level(debugLevel)). // typecast from int8 to zerolog.Level
 		With().
 		Timestamp().
 		Caller().
-//		Int("pid", os.Getpid()).
-//		Str("go_version", buildInfo.GoVersion).
+		//		Int("pid", os.Getpid()).
+		//		Str("go_version", buildInfo.GoVersion).
 		Logger()
 
 	// Note that the zerolog logger is *always* returned; if it cannot write to the log
@@ -233,7 +168,7 @@ func main() {
 	// 5. Check if the resizing method is a valid one.
 	// First check if it's empty:
 	if len(method) == 0 {
-		method = Tinify.ResizeMethodScale	// scale is default
+		method = Tinify.ResizeMethodScale // scale is default
 	} else if !slices.Contains(methods, method) {
 		// Checked if it's one of the valid methods; if not, abort.
 		logger.Fatal().Msgf("invalid resize method: %s", method)
@@ -308,19 +243,117 @@ func main() {
 		}
 	}
 
-	// Pass the non-flag arguments to the command;
-	execStatus := executeCommand(command)
-	if execStatus != 0 {
-		logger.Error().Msgf("%s returned with error code %d", os.Args[0], execStatus)
-		os.Exit(execStatus)
+	// start app
+	app := &cli.Command{
+		Name:      "tinify-go",
+		Usage:     "Calls the Tinify API from TinyPNG. Make sure you have TINIFY_API_KEY set!",
+		UsageText: os.Args[0] + " [OPTION] [FLAGS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.",
+		Version: fmt.Sprintf(
+			"%s (rev %s)\n[%s %s %s]\n[build at %s by %s]",
+			versionInfo.version,
+			versionInfo.commit,
+			versionInfo.goOS,
+			versionInfo.goARCH,
+			versionInfo.goVersion,
+			versionInfo.dateString, // Date as string in RFC3339 notation.
+			versionInfo.builtBy,    // `go build -ldflags "-X main.TheBuilder=[insertname here]"`
+		),
+		EnableShellCompletion: true,
+		//		Compiled: versionInfo.date,		// Converted from RFC333
+		Authors: []any{
+			&mail.Address{Name: "gwpp", Address: "ganwenpeng1993@163.com"},
+			&mail.Address{Name: "Gwyneth Llewelyn", Address: "gwyneth.llewelyn@gwynethllewelyn.net"},
+		},
+		Copyright: fmt.Sprintf("© 2017-%d by Ganwen Peng. All rights reserved. Freely distributed under an MIT license.", time.Now().Year()),
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:        "binary",
+				Aliases:     []string{"d"},
+				Usage:       "read in binary mode (ignored)",
+				Value:       false,
+				Destination: &setting.BinaryOrText,
+			},
+			&cli.BoolFlag{
+				Name:        "check",
+				Aliases:     []string{"c"},
+				Usage:       "read checksums from the FILEs and check them",
+				Value:       false,
+				Destination: &setting.Check,
+			},
+			&cli.BoolFlag{
+				Name:        "tag",
+				Usage:       "create a BSD-style checksum",
+				Value:       false,
+				Destination: &setting.Tag,
+			},
+			&cli.BoolFlag{
+				Name:        "text",
+				Aliases:     []string{"t"},
+				Usage:       "read in text mode (ignored)",
+				Value:       false,
+				Destination: &setting.BinaryOrText,
+			},
+			&cli.BoolFlag{
+				Name:        "zero",
+				Aliases:     []string{"z"},
+				Usage:       "end each output line with NUL, not newline, and disable file name escaping",
+				Value:       false,
+				Destination: &setting.Zero,
+			},
+			&cli.BoolFlag{
+				Name:        "quiet",
+				Aliases:     []string{"q"},
+				Usage:       "don't print OK for each successfully verified file",
+				Value:       false,
+				Destination: &setting.Quiet,
+				Action: func(ctx context.Context, cmd *cli.Command, flag bool) error {
+					if !setting.Check {
+						return cli.Exit(os.Args[0]+"the --quiet option is meaningful only when verifying checksums", 2)
+					}
+					return nil
+				},
+			},
+			&cli.BoolFlag{
+				Name:        "debug",
+				Aliases:     []string{"d"},
+				Usage:       "shows additional debugging information",
+				Value:       false,
+				Destination: &setting.Debug,
+			},
+		},
+		Commands: []*cli.Command{
+			{
+				Name:    "compress",
+				Aliases: []string{"comp"},
+				Usage:   "You can upload any image to the Tinify API to compress it. We will automatically detect the type of image (" + strings.Join(types, ", ") + ") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.",
+				Action:  compress,
+			},
+			{
+				Name:    "resize",
+				Aliases: []string{"r"},
+				Usage:   "Use the API to create resized versions of your uploaded images. By letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.\nAvailable compression methods are: " + strings.Join(methods, ", "),
+				Action:  resize,
+			},
+			{
+				Name:    "convert",
+				Aliases: []string{"conv"},
+				Usage:   "You can use the API to convert your images to your desired image type. Tinify currently supports converting between: " + strings.Join(types, ",") + ".\n When you provide more than one image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
+				Action:  convert,
+			},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			// Everything happens here!
+
+			fmt.Println("to-do")
+		},
 	}
 } // main
 
 var (
-	rawImage []byte			// raw image file, when loaded from disk.
-	err error				// declared here due to scope issues.
-	f = os.Stdin			// file handler; STDIN by default.
-	source *Tinify.Source	// declared in advance to avoid scoping issues.
+	rawImage []byte         // raw image file, when loaded from disk.
+	err      error          // declared here due to scope issues.
+	f        = os.Stdin     // file handler; STDIN by default.
+	source   *Tinify.Source // declared in advance to avoid scoping issues.
 )
 
 // All-purpose API call. Whatever is done, it happens on the globals.
@@ -395,6 +428,9 @@ func compress() int {
 	return callAPI()
 }
 
+// Temporary function to display the usage of a specific command.
+//
+// Deprecated: usage will be displayed directly inside the urfave/cli object.
 func helpUsage() int {
 	explainCommand := flag.Arg(1)
 	logger.Debug().Msgf("explaining command %q:", explainCommand)
