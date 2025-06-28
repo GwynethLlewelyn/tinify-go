@@ -85,7 +85,7 @@ func initVersionInfo() error {
 		// However, the AI revision bots dislike this, so we'll assign the current date instead.
 		versionInfo.date = time.Now()
 
-		if debugLevel > 1 {
+		if setting.DebugLevel > 1 {
 			fmt.Fprintf(os.Stderr, "date parse error: %v", parseErr)
 		}
 	}
@@ -94,13 +94,4 @@ func initVersionInfo() error {
 	versionInfo.builtBy = TheBuilder
 
 	return nil
-}
-
-// printInfo is a simple wrapper to print debugging info, if desired, or
-// skipping under normal operation.
-// TODO(gwyneth): do this properly using a modern logging library.
-func printInfo(fmtStr string, args ...any) {
-	if debugLevel > 1 {
-		fmt.Fprintf(os.Stderr, fmtStr, args...)
-	}
 }

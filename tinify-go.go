@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/ecdh"
+	//	"crypto/ecdh"
 	"fmt"
 	"io"
 	"net/mail"
@@ -196,6 +196,7 @@ func main() {
 				Name:        "type",
 				Aliases:     []string{"t"},
 				Usage:       "file type [" + strings.Join(types, "    , ") + "]",
+				Value:       "webp",
 				DefaultText: "webp",
 				Destination: &setting.FileType,
 			},
@@ -221,22 +222,32 @@ func main() {
 				Action:  resize,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "input",
-						Aliases: []string{"i"},
-						Usage:   "input filename (empty=STDIN)",
+						Name:        "method",
+						Aliases:     []string{"m"},
+						Value:       Tinify.ResizeMethodScale,
+						Usage:       "resizing method [" + strings.Join(methods, ", ") + "]",
+						Destination: &setting.Method,
+					},
+					&cli.Int64Flag{
+						Name:        "width",
+						Aliases:     []string{"w"},
+						Value:       0,
+						Usage:       "destination image width",
+						Destination: &setting.Width,
+					},
+					&cli.Int64Flag{
+						Name:        "height",
+						Aliases:     []string{"g"},
+						Value:       0,
+						Usage:       "destination image height",
+						Destination: &setting.Width,
 					},
 				},
-				/*
-					flag.StringVarP(&setting.Method, "method", "m", Tinify.ResizeMethodScale, "resizing method ["+strings.Join(methods, ", ")+"]")
-					flag.Int64VarP(&setting.Width, "width", "w", 0, "destination image width")
-					flag.Int64VarP(&setting.Height, "height", "g", 0, "destination image height")
-
-				*/
 			},
 			{
 				Name:    "convert",
 				Aliases: []string{"conv"},
-				Usage:   "You can use the API to convert your images to your desired image type. Tinify currently supports converting between: " + strings.Join(types, ",") + ".\n When you provide more than on image type i   n your convert request, the smallest version will be   returned to you.\nImage converting will count as one additional compression.",
+				Usage:   "You can use the API to convert your images to your desired image type. Tinify currently supports converting between: " + strings.Join(types, ",") + ".\n When you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
 				Action:  convert,
 			},
 			{
@@ -287,7 +298,7 @@ var (
 
 // All-purpose API call. Whatever is done, it happens on the globals.
 func callAPI(ctx context.Context, cmd *cli.Command) error {
-	setting.Logger.Debug().Msg("inside callAPI()")
+	setting.Logger.Debug().Msgf("inside callAPI(), invoked by %q", cmd.Name)
 
 	// If we have no explicit output filename, write directly to stdout
 	if len(setting.OutputFileName) == 0 {
