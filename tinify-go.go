@@ -57,8 +57,9 @@ var methods = []string{
 // Main starts here.
 func main() {
 	// Set up the version/runtime/debug-related variables, and cache them.
-	if err := initVersionInfo(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize version info: %v\n", err)
+	// `versionInfo` is a global which has very likely been already initialised.
+	if versionInfo, err = initVersionInfo(); err != nil {
+		panic(fmt.Sprintf("Failed to initialize version info: %v\n", err))
 	}
 
 	// Check if we have the API key on environment.
@@ -84,37 +85,6 @@ func main() {
 	// the simple `Debug()` call here: if this _fails_, we've not done anything yet with
 	// the images, and can safely abort.
 	setting.Logger.Debug().Msgf("setting.Logger started; tinify pkg version %s", Tinify.VERSION)
-
-	// 4. Check if the type(s) are all valid:
-	if setting.FileType != "" {
-		typesFound := strings.Split(setting.FileType, ",")
-		if typesFound == nil {
-			setting.Logger.Fatal().Msg("no valid file types found")
-		}
-		// A very inefficient way of checking if all file types are valid O(n).
-		// TODO(gwyneth): See if there is already a library function for this,
-		// or use a different, linear approach.
-		for _, aFoundType := range typesFound {
-			if !slices.Contains(types, aFoundType) {
-				setting.Logger.Fatal().Msgf("invalid file format: %s", aFoundType)
-				os.Exit(3)
-			}
-		}
-		// if we're here, all file types are valid
-		setting.Logger.Debug().Msg("all file type parameters are valid")
-	} else {
-		setting.Logger.Debug().Msg("no file type parameters found")
-	}
-
-	// 5. Check if the resizing method is a valid one.
-	// First check if it's empty:
-	if len(setting.Method) == 0 {
-		setting.Method = Tinify.ResizeMethodScale // scale is default
-	} else if !slices.Contains(methods, setting.Method) {
-		// Checked if it's one of the valid methods; if not, abort.
-		setting.Logger.Fatal().Msgf("invalid resize method: %s", setting.Method)
-		os.Exit(3)
-	}
 
 	// Input file may be either an image filename or an URL; TinyPNG will handle both-
 	// Since `://` is hardly a valid filename, but a requirement for being an URL;
@@ -159,19 +129,10 @@ func main() {
 
 	// start CLI app
 	cmd := &cli.Command{
-		Name:      "tinify-go",
-		Usage:     "Calls the Tinify API from TinyPNG. Make sure you have TINIFY_API_KEY set!",
-		UsageText: os.Args[0] + " [OPTION] [FLAGS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.",
-		Version: fmt.Sprintf(
-			"%s (rev %s)\n[%s %s %s]\n[build at %s by %s]",
-			versionInfo.version,
-			versionInfo.commit,
-			versionInfo.goOS,
-			versionInfo.goARCH,
-			versionInfo.goVersion,
-			versionInfo.dateString, // Date as string in RFC3339 notation.
-			versionInfo.builtBy,    // `go build -ldflags "-X main.TheBuilder=[insertname here]"`
-		),
+		Name:                  "tinify-go",
+		Usage:                 "Calls the Tinify API from TinyPNG. Make sure you have TINIFY_API_KEY set!",
+		UsageText:             os.Args[0] + " [OPTION] [FLAGS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.",
+		Version:               fmt.Sprint(versionInfo),
 		EnableShellCompletion: true,
 		//		Compiled: versionInfo.date,		// Converted from RFC333
 		Authors: []any{
@@ -199,6 +160,30 @@ func main() {
 				Value:       "webp",
 				DefaultText: "webp",
 				Destination: &setting.FileType,
+				Action: func(ctx context.Context, c *cli.Command, s string) error {
+					// Check if the type(s) are all valid:
+					if setting.FileType != "" {
+						typesFound := strings.Split(setting.FileType, ",")
+						if typesFound == nil {
+							setting.Logger.Fatal().Msg("no valid file types found")
+							return fmt.Errorf("no valid file types found")
+						}
+						// A very inefficient way of checking if all file types are valid O(n).
+						// TODO(gwyneth): See if there is already a library function for this,
+						// or use a different, linear approach.
+						for _, aFoundType := range typesFound {
+							if !slices.Contains(types, aFoundType) {
+								setting.Logger.Fatal().Msgf("invalid file format: %q", aFoundType)
+								return fmt.Errorf("invalid file format: %q", aFoundType)
+							}
+						}
+						// if we're here, all file types are valid
+						setting.Logger.Debug().Msg("all file type parameters are valid")
+					} else {
+						setting.Logger.Debug().Msg("no file type parameters found")
+					}
+					return nil
+				},
 			},
 			&cli.Int8Flag{
 				Name:        "debug",
@@ -209,6 +194,15 @@ func main() {
 			},
 		},
 		Commands: []*cli.Command{
+			{
+				Name:    "version",
+				Aliases: []string{"v"},
+				Usage:   "show version and compilation data",
+				Action: func(ctx context.Context, c *cli.Command) error {
+
+					return nil
+				},
+			},
 			{
 				Name:    "compress",
 				Aliases: []string{"comp"},
@@ -227,6 +221,18 @@ func main() {
 						Value:       Tinify.ResizeMethodScale,
 						Usage:       "resizing method [" + strings.Join(methods, ", ") + "]",
 						Destination: &setting.Method,
+						Action: func(ctx context.Context, c *cli.Command, s string) error {
+							// Check if the resizing method is a valid one.
+							// First check if it's empty:
+							if len(setting.Method) == 0 {
+								setting.Method = Tinify.ResizeMethodScale // scale is default
+							} else if !slices.Contains(methods, setting.Method) {
+								// Checked if it's one of the valid methods; if not, abort.
+								setting.Logger.Fatal().Msgf("invalid resize method: %q", setting.Method)
+								return fmt.Errorf("invalid resize method: %q", setting.Method)
+							}
+							return nil
+						},
 					},
 					&cli.Int64Flag{
 						Name:        "width",

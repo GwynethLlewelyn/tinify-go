@@ -29,32 +29,33 @@ type versionInfoType struct {
 // NOTE: debugLevel is set in main.
 
 var (
-	versionInfo versionInfoType // cached values for this build.
-	TheBuilder  string          // to be overwritten via the linker command `go build -ldflags "-X main.TheBuilder=gwyneth"`.
-	TheVersion  string          // to be overwritten with -X main.TheVersion=X.Y.Z, as above.
+	versionInfo *versionInfoType // cached values for this build.
+	TheBuilder  string           // to be overwritten via the linker command `go build -ldflags "-X main.TheBuilder=gwyneth"`.
+	TheVersion  string           // to be overwritten with -X main.TheVersion=X.Y.Z, as above.
 )
 
-// Initialises the versionInfo variable.
-func initVersionInfo() error {
-	if versionInfo.init {
+// Initialises a versionInfo variable.
+func initVersionInfo() (vI *versionInfoType, err error) {
+	vI = new(versionInfoType)
+	if vI.init {
 		// already initialised, no need to do anything else!
-		return nil
+		return vI, nil
 	}
 	// get the following entries from the runtime:
-	versionInfo.goOS = runtime.GOOS
-	versionInfo.goARCH = runtime.GOARCH
-	versionInfo.goVersion = runtime.Version()
+	vI.goOS = runtime.GOOS
+	vI.goARCH = runtime.GOARCH
+	vI.goVersion = runtime.Version()
 
 	// attempt to get some build info as well:
 	buildInfo, ok := debug.ReadBuildInfo()
 	if !ok {
-		return fmt.Errorf("no valid build information found")
+		return nil, fmt.Errorf("no valid build information found")
 	}
 	// use our supplied version instead of the long, useless, default Go version string.
 	if TheVersion == "" {
-		versionInfo.version = buildInfo.Main.Version
+		vI.version = buildInfo.Main.Version
 	} else {
-		versionInfo.version = TheVersion
+		vI.version = TheVersion
 	}
 
 	// Now dig through settings and extract what we can...
@@ -67,23 +68,23 @@ func initVersionInfo() error {
 		case "vcs.revision":
 			rev = setting.Value
 		case "vcs.time":
-			versionInfo.dateString = setting.Value
+			vI.dateString = setting.Value
 		}
 	}
-	versionInfo.commit = "unknown"
+	vI.commit = "unknown"
 	if vcs != "" {
-		versionInfo.commit = vcs
+		vI.commit = vcs
 	}
 	if rev != "" {
-		versionInfo.commit += " [" + rev + "]"
+		vI.commit += " [" + rev + "]"
 	}
 	// attempt to parse the date, which comes as a string in RFC3339 format, into a date.Time:
 	var parseErr error
-	if versionInfo.date, parseErr = time.Parse(versionInfo.dateString, time.RFC3339); parseErr != nil {
+	if vI.date, parseErr = time.Parse(vI.dateString, time.RFC3339); parseErr != nil {
 		// Note: we can safely ignore the parsing error: either the conversion works, or it doesn't, and we
 		// cannot do anything about it... (gwyneth 20231103)
 		// However, the AI revision bots dislike this, so we'll assign the current date instead.
-		versionInfo.date = time.Now()
+		vI.date = time.Now()
 
 		if setting.DebugLevel > 1 {
 			fmt.Fprintf(os.Stderr, "date parse error: %v", parseErr)
@@ -91,7 +92,31 @@ func initVersionInfo() error {
 	}
 
 	// see comment above
-	versionInfo.builtBy = TheBuilder
+	vI.builtBy = TheBuilder
+	// Mark initialisation as complete before returning.
+	vI.init = true
+	return vI, nil
+}
 
-	return nil
+// Returns a pretty-printed version of versionInfo, respecting the String() syntax.
+func (vI *versionInfoType) String() string {
+	return fmt.Sprintf(
+		"%s (rev %s) [%s %s %s] [build at %s by %s]",
+		vI.version,
+		vI.commit,
+		vI.goOS,
+		vI.goARCH,
+		vI.goVersion,
+		vI.dateString, // Date as string in RFC3339 notation.
+		vI.builtBy,    // see note at the top...
+	)
+}
+
+// Initialises a global, pre-defined versionInfo variable (we might just need one).
+// Panics if allocation failed!
+func init() {
+	var err error
+	if versionInfo, err = initVersionInfo(); err != nil {
+		panic(err)
+	}
 }
