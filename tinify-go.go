@@ -22,7 +22,7 @@ var ctx = context.Background()
 
 // Type to hold the global variables for all possible calls.
 type Setting struct {
-	DebugLevel     int8           `json:"debug_level"`      // Debug/verbosity level, 0 is no debugging, > 1 info only and above.
+	DebugLevel     string         `json:"debug_level"`      // Debug/verbosity level, "error" by default
 	ImageName      string         `json:"image_name"`       // Filename or URL.
 	OutputFileName string         `json:"output_file_name"` // If set, it's the output filename; if not, well...
 	FileType       string         `json:"file_type"`        // Any set of webp, png, jpg, avif.
@@ -70,9 +70,14 @@ func main() {
 	// Grab flags
 
 	// Start zerolog setting.Logger.
+	// First, we need to figure out
+	tinifyDebugLevel := zerolog.ErrorLevel
+	if tinifyDebugLevel, err = zerolog.ParseLevel(setting.DebugLevel); err != nil {
+		tinifyDebugLevel = zerolog.ErrorLevel
+	}
 	// We're also using it for pretty-printing to the console.
 	setting.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
-		Level(zerolog.Level(setting.DebugLevel)). // typecast from int8 to zerolog.Level
+		Level(tinifyDebugLevel). // typecast from int8 to zerolog.Level
 		With().
 		Timestamp().
 		Caller().
@@ -84,48 +89,9 @@ func main() {
 	// for some reason, that error will be handled by the zerolog passage, thus
 	// the simple `Debug()` call here: if this _fails_, we've not done anything yet with
 	// the images, and can safely abort.
-	setting.Logger.Debug().Msgf("setting.Logger started; tinify pkg version %s", Tinify.VERSION)
-
-	// Input file may be either an image filename or an URL; TinyPNG will handle both-
-	// Since `://` is hardly a valid filename, but a requirement for being an URL;
-	// handle URL later.
-	// Note that if setting.ImageName is unset, stdin is assumed, even if it might not yet work.
-	setting.Logger.Debug().Msgf("opening input file for reading: %q", setting.ImageName)
-	if setting.ImageName == "" || !strings.Contains(setting.ImageName, "://") {
-		if setting.ImageName == "" {
-			// empty filename; use stdin
-			f = os.Stdin
-			// Logging to console, so let the user knows that as well
-			setting.Logger.Info().Msg("empty filename; reading from console/stdin instead")
-		} else {
-			// check to see if we can open this file:
-			f, err = os.Open(setting.ImageName)
-			if err != nil {
-				setting.Logger.Fatal().Err(err)
-			}
-			setting.Logger.Debug().Msgf("%q sucessfully opened", setting.ImageName)
-		}
-		// Get the image file from disk/stdin.
-		rawImage, err = io.ReadAll(f)
-		if err != nil {
-			setting.Logger.Fatal().Err(err)
-		}
-
-		setting.Logger.Debug().Msgf("arg: %q (empty means stdin), size %d", setting.ImageName, len(rawImage))
-
-		// Now call the TinyPNG API
-		source, err = Tinify.FromBuffer(rawImage)
-		if err != nil {
-			setting.Logger.Fatal().Err(err)
-		}
-	} else {
-		// we're assuming that we've got a valid URL, which might *not* be the case!
-		// TODO(Tasker): extra validation
-		source, err = Tinify.FromUrl(setting.ImageName)
-		if err != nil {
-			setting.Logger.Fatal().Err(err)
-		}
-	}
+	setting.Logger.Debug().Msgf("setting.Logger started at error level %s; tinify pkg version %s",
+		tinifyDebugLevel,
+		Tinify.VERSION)
 
 	// start CLI app
 	cmd := &cli.Command{
@@ -185,11 +151,11 @@ func main() {
 					return nil
 				},
 			},
-			&cli.Int8Flag{
+			&cli.StringFlag{
 				Name:        "debug",
 				Aliases:     []string{"d"},
-				Usage:       "debug level; zero means no debug",
-				Value:       4,
+				Usage:       "debug level; \"error\" means no debug",
+				Value:       "error",
 				Destination: &setting.DebugLevel,
 			},
 		},
@@ -199,7 +165,7 @@ func main() {
 				Aliases: []string{"v"},
 				Usage:   "show version and compilation data",
 				Action: func(ctx context.Context, c *cli.Command) error {
-
+					fmt.Println(versionInfo)
 					return nil
 				},
 			},
@@ -267,6 +233,47 @@ func main() {
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// Everything happens here!
 
+			// Input file may be either an image filename or an URL; TinyPNG will handle both-
+			// Since `://` is hardly a valid filename, but a requirement for being an URL;
+			// handle URL later.
+			// Note that if setting.ImageName is unset, stdin is assumed, even if it might not yet work.
+			setting.Logger.Debug().Msgf("opening input file for reading: %q", setting.ImageName)
+			if setting.ImageName == "" || !strings.Contains(setting.ImageName, "://") {
+				if setting.ImageName == "" {
+					// empty filename; use stdin
+					f = os.Stdin
+					// Logging to console, so let the user knows that as well
+					setting.Logger.Info().Msg("empty filename; reading from console/stdin instead")
+				} else {
+					// check to see if we can open this file:
+					f, err = os.Open(setting.ImageName)
+					if err != nil {
+						setting.Logger.Fatal().Err(err)
+					}
+					setting.Logger.Debug().Msgf("%q sucessfully opened", setting.ImageName)
+				}
+				// Get the image file from disk/stdin.
+				rawImage, err = io.ReadAll(f)
+				if err != nil {
+					setting.Logger.Fatal().Err(err)
+				}
+
+				setting.Logger.Debug().Msgf("arg: %q (empty means stdin), size %d", setting.ImageName, len(rawImage))
+
+				// Now call the TinyPNG API
+				source, err = Tinify.FromBuffer(rawImage)
+				if err != nil {
+					setting.Logger.Fatal().Err(err)
+				}
+			} else {
+				// we're assuming that we've got a valid URL, which might *not* be the case!
+				// TODO(Tasker): extra validation
+				source, err = Tinify.FromUrl(setting.ImageName)
+				if err != nil {
+					setting.Logger.Fatal().Err(err)
+				}
+			}
+
 			// Check if key is somewhat valid, i.e. has a decent amount of chars:
 			if len(setting.Key) < 5 {
 				setting.Logger.Fatal().Msgf("invalid Tinify API %q; too short — please check your key and try again\n", setting.Key)
@@ -304,7 +311,7 @@ var (
 
 // All-purpose API call. Whatever is done, it happens on the globals.
 func callAPI(ctx context.Context, cmd *cli.Command) error {
-	setting.Logger.Debug().Msgf("inside callAPI(), invoked by %q", cmd.Name)
+	setting.Logger.Debug().Msgf("inside callAPI(), invoked by %q, context error: %q", cmd.Name, ctx.Err().Error())
 
 	// If we have no explicit output filename, write directly to stdout
 	if len(setting.OutputFileName) == 0 {

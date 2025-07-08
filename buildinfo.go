@@ -86,7 +86,7 @@ func initVersionInfo() (vI *versionInfoType, err error) {
 		// However, the AI revision bots dislike this, so we'll assign the current date instead.
 		vI.date = time.Now()
 
-		if setting.DebugLevel > 1 {
+		if setting.DebugLevel == "debug" || setting.DebugLevel == "info" || setting.DebugLevel == "trace" || setting.DebugLevel == "error" {
 			fmt.Fprintf(os.Stderr, "date parse error: %v", parseErr)
 		}
 	}
@@ -101,7 +101,7 @@ func initVersionInfo() (vI *versionInfoType, err error) {
 // Returns a pretty-printed version of versionInfo, respecting the String() syntax.
 func (vI *versionInfoType) String() string {
 	return fmt.Sprintf(
-		"%s (rev %s) [%s %s %s] [build at %s by %s]",
+		"\t%s\n\t(rev %s)\n\t[%s %s %s]\n\tBuilt on %s by %s]",
 		vI.version,
 		vI.commit,
 		vI.goOS,
