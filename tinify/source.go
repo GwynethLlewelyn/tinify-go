@@ -12,7 +12,7 @@ const (
 	ResizeMethodScale = "scale"
 	ResizeMethodFit   = "fit"
 	ResizeMethodCover = "cover"
-	ResizeMethodThumb = "thumb"	// new method!
+	ResizeMethodThumb = "thumb" // new method!
 )
 
 type ResizeMethod string
@@ -26,16 +26,16 @@ type ResizeOption struct {
 
 type Source struct {
 	url      string
-	commands map[string]interface{}
+	commands map[string]any
 }
 
-func newSource(url string, commands map[string]interface{}) *Source {
+func newSource(url string, commands map[string]any) *Source {
 	s := new(Source)
 	s.url = url
 	if commands != nil {
 		s.commands = commands
 	} else {
-		s.commands = make(map[string]interface{})
+		s.commands = make(map[string]any)
 	}
 
 	return s
@@ -66,8 +66,8 @@ func FromUrl(url string) (s *Source, err error) {
 		return
 	}
 
-	body := map[string]interface{}{
-		"source": map[string]interface{}{
+	body := map[string]any{
+		"source": map[string]any{
 			"url": url,
 		},
 	}
@@ -110,13 +110,12 @@ func (s *Source) ToBuffer() (rawData []byte, err error) {
 		return
 	}
 
-	rawData = result.Data()	// this is result.data, but may not be in the future, who knows? (gwyneth 20231209)
+	rawData = result.Data() // this is result.data, but may not be in the future, who knows? (gwyneth 20231209)
 	if len(rawData) == 0 {
 		err = fmt.Errorf("result returned zero bytes")
 	}
 	return
 }
-
 
 func (s *Source) Resize(option *ResizeOption) error {
 	if option == nil {
@@ -129,16 +128,15 @@ func (s *Source) Resize(option *ResizeOption) error {
 }
 
 var ConvertMIMETypes = map[string]string{
-	"png":	"image/png",
-	"jpeg":	"image/jpeg",
-	"webp":	"image/webp",
-	"avif":	"image/avif",
-
+	"png":  "image/png",
+	"jpeg": "image/jpeg",
+	"webp": "image/webp",
+	"avif": "image/avif",
 }
 
 // Extra type struct for JSONification purposes...
 type ConvertOptions struct {
-	Type string	`json:"type"`	// can be image/png, etc.
+	Type string `json:"type"` // can be image/png, etc.
 }
 
 // Converts the image to one of several possible choices, returning the smallest.
@@ -168,7 +166,7 @@ func (s *Source) Convert(options []string) error {
 
 // JSONified type for transform options, currently only "background" is supported.
 type TransformOptions struct {
-	Background string `json:"background"`	// "white", "black", or a hex colour.
+	Background string `json:"background"` // "white", "black", or a hex colour.
 }
 
 // Transforms the transparency colour into the desired background colour.

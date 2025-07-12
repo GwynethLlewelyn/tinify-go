@@ -48,5 +48,5 @@ func GetClient() *Client {
 // Empty `init()`just to make sure the debugger reaches this package.
 func init() {
 	// This exists only for seetting a breakpoint.
-	fmt.Fprintf(os.Stderr, "Launching Tinify packaage...")
+	fmt.Fprintf(os.Stderr, "Launching Tinify packaage, version %s...", VERSION)
 }
