@@ -69,6 +69,9 @@ tinify-go
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# Temporary debugger files
+__*
+
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
 .idea/
