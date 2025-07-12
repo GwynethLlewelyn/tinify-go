@@ -4,14 +4,18 @@
 // Email:	"ganwenpeng1993@163.com",
 package Tinify
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"os"
+)
 
-const VERSION = "v0.2.0"	// using semantic versioning; 1.0 is considered "stable"...
+const VERSION = "v0.2.0" // using semantic versioning; 1.0 is considered "stable"...
 
 var (
-	key		string	// Tinify API Key, as obtained through https://tinypng.com/developers.
-	client	*Client	// Default Tinify API client.
-	proxy	string	// Proxy used just for the Tinify API.
+	key    string  // Tinify API Key, as obtained through https://tinypng.com/developers.
+	client *Client // Default Tinify API client.
+	proxy  string  // Proxy used just for the Tinify API.
 )
 
 // Sets the global Tinify API key for the module.
@@ -39,4 +43,10 @@ func GetClient() *Client {
 		client = c
 	}
 	return client
+}
+
+// Empty `init()`just to make sure the debugger reaches this package.
+func init() {
+	// This exists only for seetting a breakpoint.
+	fmt.Fprintf(os.Stderr, "Launching Tinify packaage...")
 }
