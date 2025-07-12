@@ -33,11 +33,11 @@ Remember, to use it, you need a valid Tinify API Key, passed wither with the `--
 
 ## Usage
 
--   About the TinyPNG API key
+- About the TinyPNG API key
 
     Get your API key from https://tinypng.com/developers
 
--   Compress
+- Compress
 
     ```golang
     func TestCompressFromFile(t *testing.T) {
@@ -57,7 +57,7 @@ Remember, to use it, you need a valid Tinify API Key, passed wither with the `--
     }
     ```
 
--   Resize
+- Resize
 
     ```golang
     func TestResizeFromBuffer(t *testing.T) {
@@ -92,11 +92,11 @@ Remember, to use it, you need a valid Tinify API Key, passed wither with the `--
     }
     ```
 
--   **_Notice:_**
+- **_Notice:_**
 
     `Tinify.ResizeMethod()` supports `scale`, `fit` and `cover`. If you use either fit or cover, you must provide **both a width and a height**. But if you use scale, you must instead provide _either_ a target width _or_ a target height, **but not both**.
 
--   For further usage, please read the comments in [tinify_test.go](./tinify_test.go)
+- For further usage, please read the comments in [tinify_test.go](./tinify_test.go)
 
 ## Running tests
 
@@ -108,11 +108,13 @@ go test
 ## Command-line utility
 
 To build it:
+
 ```shell
 cd $GOPATH/src/github.com/gwpp/tinify-go
 go build
 # or, if you prefer, `go install`
 ```
+
 and then invoke `./tinify-go --help` to get some basic instructions in what the CLI demonstrates.
 
 ## License
