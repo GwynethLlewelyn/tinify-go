@@ -6,8 +6,6 @@ package Tinify
 
 import (
 	"errors"
-	"fmt"
-	"os"
 )
 
 const VERSION = "v0.2.0" // using semantic versioning; 1.0 is considered "stable"...
@@ -45,8 +43,10 @@ func GetClient() *Client {
 	return client
 }
 
+/*
 // Empty `init()`just to make sure the debugger reaches this package.
 func init() {
 	// This exists only for seetting a breakpoint.
 	fmt.Fprintf(os.Stderr, "Launching Tinify packaage, version %s...", VERSION)
 }
+*/
