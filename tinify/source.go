@@ -81,11 +81,14 @@ func FromUrl(url string) (s *Source, err error) {
 	return
 }
 
+// getSourceFromResponse tries to retrieve the URL that the Tinify API created to download the processed image.
 func getSourceFromResponse(response *http.Response) (s *Source, err error) {
 	location := response.Header["Location"]
 	url := ""
-	if len(location) > 0 {
+	if len(location) > 0 && response.StatusCode != http.StatusBadRequest {
 		url = location[0]
+	} else {
+		return nil, fmt.Errorf("empty location and/or status error %d", response.StatusCode)
 	}
 
 	s = newSource(url, nil)
