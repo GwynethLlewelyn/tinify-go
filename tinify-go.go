@@ -89,7 +89,7 @@ func main() {
 	// for some reason, that error will be handled by the zerolog passage, thus
 	// the simple `Debug()` call here: if this _fails_, we've not done anything yet with
 	// the images, and can safely abort.
-	setting.Logger.Debug().Msgf("setting.Logger started at error level %s; tinify pkg version %s",
+	setting.Logger.Debug().Msgf("setting.Logger started at error level %v; tinify pkg version %s",
 		tinifyDebugLevel,
 		Tinify.VERSION)
 
@@ -99,7 +99,9 @@ func main() {
 		Usage:                 "Calls the Tinify API from TinyPNG. Make sure you have TINIFY_API_KEY set!",
 		UsageText:             os.Args[0] + " [OPTION] [FLAGS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.",
 		Version:               fmt.Sprint(versionInfo),
+		DefaultCommand:        "compress",
 		EnableShellCompletion: true,
+		Suggest:               true, // see https://cli.urfave.org/v3/examples/help/suggestions/
 		//		Compiled: versionInfo.date,		// Converted from RFC333
 		Authors: []any{
 			&mail.Address{Name: "gwpp", Address: "ganwenpeng1993@163.com"},
@@ -230,8 +232,34 @@ func main() {
 				HideHelp:  false,
 			},
 		},
-		Action: func(ctx context.Context, cmd *cli.Command) error {
-			// Everything happens here!
+		CommandNotFound: func(ctx context.Context, cmd *cli.Command, command string) {
+			setting.Logger.Fatal().Msgf("Command %q not found.\nUsage: %s\n", command, cmd.UsageText)
+		},
+		OnUsageError: func(ctx context.Context, cmd *cli.Command, err error, isSubcommand bool) error {
+			if isSubcommand {
+				return err
+			}
+
+			setting.Logger.Error().Msgf("Wrong usage: %#v\n", err)
+			return nil
+		},
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			// Setup phase
+			/*
+				cli.HelpFlag = &cli.BoolFlag{
+					Name:    "help",
+					Aliases: []string{"h"},
+					Usage:   "Shows command help",
+				}
+			*/
+			// Check if key is somewhat valid, i.e. has a decent amount of chars:
+			if len(setting.Key) < 5 {
+				return ctx, fmt.Errorf("invalid Tinify API key %q; too short — please check your key and try again\n", setting.Key)
+			}
+
+			// Now safely set the API key
+			Tinify.SetKey(setting.Key)
+			setting.Logger.Debug().Msgf("a TinyPNG key was found: [...%s]\n", setting.Key[len(setting.Key)-4:])
 
 			// Input file may be either an image filename or an URL; TinyPNG will handle both-
 			// Since `://` is hardly a valid filename, but a requirement for being an URL;
@@ -248,14 +276,14 @@ func main() {
 					// check to see if we can open this file:
 					f, err = os.Open(setting.ImageName)
 					if err != nil {
-						setting.Logger.Fatal().Err(err)
+						return ctx, err
 					}
 					setting.Logger.Debug().Msgf("%q sucessfully opened", setting.ImageName)
 				}
 				// Get the image file from disk/stdin.
 				rawImage, err = io.ReadAll(f)
 				if err != nil {
-					setting.Logger.Fatal().Err(err)
+					return ctx, err
 				}
 
 				setting.Logger.Debug().Msgf("arg: %q (empty means stdin), size %d", setting.ImageName, len(rawImage))
@@ -263,36 +291,25 @@ func main() {
 				// Now call the TinyPNG API
 				source, err = Tinify.FromBuffer(rawImage)
 				if err != nil {
-					setting.Logger.Fatal().Err(err)
+					return ctx, err
 				}
 			} else {
 				// we're assuming that we've got a valid URL, which might *not* be the case!
 				// TODO(Tasker): extra validation
 				source, err = Tinify.FromUrl(setting.ImageName)
 				if err != nil {
-					setting.Logger.Fatal().Err(err)
+					return ctx, err
 				}
 			}
 
-			// Check if key is somewhat valid, i.e. has a decent amount of chars:
-			if len(setting.Key) < 5 {
-				setting.Logger.Fatal().Msgf("invalid Tinify API %q; too short — please check your key and try again\n", setting.Key)
-				os.Exit(2)
-			}
+			return nil, nil
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			// Everything not defined above happens here!
 
-			// Set the API key (we've already checked if it is valid & exists):
-			Tinify.SetKey(setting.Key)
-			setting.Logger.Debug().Msgf("a TinyPNG key was found: [...%s]", setting.Key[len(setting.Key)-4:])
-
-			fmt.Println("to-do")
+			setting.Logger.Debug().Msg("Reached empty Action block")
 			return nil
 		},
-	}
-
-	cli.HelpFlag = &cli.BoolFlag{
-		Name:    "help",
-		Aliases: []string{"h"},
-		Usage:   "Shows command help",
 	}
 
 	//	cli.CommandHelpTemplate = commandHelpTemplate
