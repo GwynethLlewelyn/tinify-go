@@ -328,11 +328,15 @@ var (
 
 // All-purpose API call. Whatever is done, it happens on the globals.
 func callAPI(ctx context.Context, cmd *cli.Command) error {
-	setting.Logger.Debug().Msgf("inside callAPI(), invoked by %q, context error: %q", cmd.Name, ctx.Err().Error())
+	if len(cmd.Name) == 0 {
+		return fmt.Errorf("no command")
+	}
+	setting.Logger.Debug().Msgf("inside callAPI(), invoked by %q", cmd.Name)
 
 	// If we have no explicit output filename, write directly to stdout
 	if len(setting.OutputFileName) == 0 {
 		setting.Logger.Debug().Msg("no output filename; writing to stdout instead")
+		// Warning: `source` is a global variable in this context!
 		rawImage, err := source.ToBuffer()
 		if err != nil {
 			setting.Logger.Error().Err(err)
