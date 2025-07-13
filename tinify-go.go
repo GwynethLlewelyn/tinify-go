@@ -156,16 +156,18 @@ func main() {
 				},
 			},
 			{
-				Name:    "compress",
-				Aliases: []string{"comp"},
-				Usage:   "You can upload any image to the Tinify API to compress it. We will automatically detect the type of image (" + strings.Join(types, ", ") + ") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.",
-				Action:  compress,
+				Name:      "compress",
+				Aliases:   []string{"comp"},
+				Usage:     "compresses and optimises an image",
+				UsageText: "You can upload any image to the Tinify API to compress it. We will automatically detect the type of image (" + strings.Join(types, ", ") + ") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.",
+				Action:    compress,
 			},
 			{
-				Name:    "resize",
-				Aliases: []string{"r"},
-				Usage:   "Use the API to create resized versions of your uploaded images. By letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.\nAvailable compression methods are: " + strings.Join(methods, ", "),
-				Action:  resize,
+				Name:      "resize",
+				Aliases:   []string{"r"},
+				Usage:     "resizes the image to a new size, using one of the possible methods",
+				UsageText: "Use the API to create resized versions of your uploaded images.\nBy letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.\nAvailable compression methods are: " + strings.Join(methods, ", "),
+				Action:    resize,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "method",
@@ -203,10 +205,11 @@ func main() {
 				},
 			},
 			{
-				Name:    "convert",
-				Aliases: []string{"conv"},
-				Usage:   "You can use the API to convert your images to your desired image type. Tinify currently supports converting between: " + strings.Join(types, ", ") + ".\n When you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
-				Action:  convert,
+				Name:      "convert",
+				Aliases:   []string{"conv"},
+				Usage:     "converts from one file type to another (" + strings.Join(types, ", ") + " supported)",
+				UsageText: "You can use the API to convert your images to your desired image type.\nTinify currently supports converting between: " + strings.Join(types, ", ") + ".\nWhen you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
+				Action:    convert,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "type",
@@ -241,10 +244,11 @@ func main() {
 				},
 			},
 			{
-				Name:    "transform",
-				Aliases: []string{"tr"},
-				Usage:   "If you wish to convert an image with a transparent background to one with a solid background, specify a background property in the transform object. If this property is provided, the background of a transparent image will be filled (only \"white\", \"black\", or a hex value are allowed).",
-				Action:  transform,
+				Name:      "transform",
+				Aliases:   []string{"tr"},
+				Usage:     "processes image further (currently only replaces the background with a solid colour",
+				UsageText: "If you wish to convert an image with a transparent background to one with a solid background, specify a background property in the transform object.\nIf this property is provided, the background of a transparent image will be filled (only \"white\", \"black\", or a hex value are allowed).",
+				Action:    transform,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "background",
