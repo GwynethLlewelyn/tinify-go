@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	//	"crypto/ecdh"
 	"fmt"
 	"io"
 	"net/mail"
@@ -31,6 +30,7 @@ type Setting struct {
 	Method         string         `json:"method"`           // Resizing method (scale, fit, cover, thumb).
 	Width          int64          `json:"width"`            // Image width  (for resize operations).
 	Height         int64          `json:"height"`           // Image height (  "   "      "    "  ).
+	Transform      string         `json:"transform"`        // Transform the background to one of 'black', 'white', or hex value.
 }
 
 // Global settings for this CLI app.
@@ -70,7 +70,7 @@ func main() {
 	// Grab flags
 
 	// Start zerolog setting.Logger.
-	// First, we need to figure out
+	// First, we need to figure out what the current level is. Very likely, at this stage, it's unset.
 	tinifyDebugLevel := zerolog.ErrorLevel
 	if tinifyDebugLevel, err = zerolog.ParseLevel(setting.DebugLevel); err != nil {
 		tinifyDebugLevel = zerolog.ErrorLevel
@@ -122,43 +122,27 @@ func main() {
 				Destination: &setting.OutputFileName,
 			},
 			&cli.StringFlag{
-				Name:        "type",
-				Aliases:     []string{"t"},
-				Usage:       "file type [" + strings.Join(types, "    , ") + "]",
-				Value:       "webp",
-				DefaultText: "webp",
-				Destination: &setting.FileType,
-				Action: func(ctx context.Context, c *cli.Command, s string) error {
-					// Check if the type(s) are all valid:
-					if setting.FileType != "" {
-						typesFound := strings.Split(setting.FileType, ",")
-						if typesFound == nil {
-							setting.Logger.Fatal().Msg("no valid file types found")
-							return fmt.Errorf("no valid file types found")
-						}
-						// A very inefficient way of checking if all file types are valid O(n).
-						// TODO(gwyneth): See if there is already a library function for this,
-						// or use a different, linear approach.
-						for _, aFoundType := range typesFound {
-							if !slices.Contains(types, aFoundType) {
-								setting.Logger.Fatal().Msgf("invalid file format: %q", aFoundType)
-								return fmt.Errorf("invalid file format: %q", aFoundType)
-							}
-						}
-						// if we're here, all file types are valid
-						setting.Logger.Debug().Msg("all file type parameters are valid")
-					} else {
-						setting.Logger.Debug().Msg("no file type parameters found")
-					}
-					return nil
-				},
-			},
-			&cli.StringFlag{
 				Name:        "debug",
 				Aliases:     []string{"d"},
 				Usage:       "debug level; \"error\" means no debug",
 				Value:       "error",
 				Destination: &setting.DebugLevel,
+				Action: func(ctx context.Context, c *cli.Command, s string) error {
+					// Check if the debug level is valid:
+					// Must be one of the zerolog valid types
+					if setting.DebugLevel != "" {
+						if tinifyDebugLevel, err = zerolog.ParseLevel(setting.DebugLevel); err == nil {
+							// Ok, valid error level selected, set it:
+							setting.Logger.Level(tinifyDebugLevel)
+							return nil
+						}
+					}
+					// Unknown error level, or empty error level, so fall back to "error"
+					setting.Logger.Level(zerolog.ErrorLevel)
+
+					return fmt.Errorf("unknown logging type %q, setting to \"error\" by default",
+						setting.DebugLevel)
+				},
 			},
 		},
 		Commands: []*cli.Command{
@@ -174,7 +158,7 @@ func main() {
 			{
 				Name:    "compress",
 				Aliases: []string{"comp"},
-				Usage:   "You can upload any image to the Tinify API to com press it. We will automatically detect the type of image (" + strings.Join(types, ", ") + ") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.",
+				Usage:   "You can upload any image to the Tinify API to compress it. We will automatically detect the type of image (" + strings.Join(types, ", ") + ") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.",
 				Action:  compress,
 			},
 			{
@@ -221,16 +205,76 @@ func main() {
 			{
 				Name:    "convert",
 				Aliases: []string{"conv"},
-				Usage:   "You can use the API to convert your images to your desired image type. Tinify currently supports converting between: " + strings.Join(types, ",") + ".\n When you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
+				Usage:   "You can use the API to convert your images to your desired image type. Tinify currently supports converting between: " + strings.Join(types, ", ") + ".\n When you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
 				Action:  convert,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "type",
+						Aliases:     []string{"t"},
+						Usage:       "file type [" + strings.Join(types, ", ") + "]",
+						Value:       "webp",
+						DefaultText: "webp",
+						Destination: &setting.FileType,
+						Action: func(ctx context.Context, c *cli.Command, s string) error {
+							// Check if the type(s) are all valid:
+							if setting.FileType != "" {
+								typesFound := strings.Split(setting.FileType, ",")
+								if typesFound == nil {
+									return fmt.Errorf("no valid file types found")
+								}
+								// A very inefficient way of checking if all file types are valid O(n).
+								// TODO(gwyneth): See if there is already a library function for this,
+								// or use a different, linear approach.
+								for _, aFoundType := range typesFound {
+									if !slices.Contains(types, aFoundType) {
+										return fmt.Errorf("invalid file format: %q", aFoundType)
+									}
+								}
+								// if we're here, all file types are valid
+								setting.Logger.Debug().Msg("all file type parameters are valid")
+							} else {
+								setting.Logger.Debug().Msg("no file type parameters found")
+							}
+							return nil
+						},
+					},
+				},
 			},
 			{
+				Name:    "transform",
+				Aliases: []string{"tr"},
+				Usage:   "If you wish to convert an image with a transparent background to one with a solid background, specify a background property in the transform object. If this property is provided, the background of a transparent image will be filled (only \"white\", \"black\", or a hex value are allowed).",
+				Action:  transform,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "background",
+						Aliases:     []string{"bg"},
+						Value:       "",
+						Usage:       "only \"white\", \"black\", or a hex value are allowed",
+						Destination: &setting.Transform,
+						Action: func(ctx context.Context, c *cli.Command, s string) error {
+							// Check if value passed is correct.
+							setting.Transform = strings.ToLower(setting.Transform)
+							if setting.Transform == "white" || setting.Transform == "black" {
+								return nil
+							}
+							// Just check if the rmaining string is a valid hex string.
+							// (gwyneth 20250713)
+							if !isValidHex(setting.Transform) {
+								return fmt.Errorf("invalid hex value")
+							}
+							return nil
+						},
+					},
+				},
+			},
+			/* 			{
 				Name:      "help",
 				Aliases:   []string{"h"},
 				Usage:     "Shows command help",
 				ArgsUsage: "[command]",
 				HideHelp:  false,
-			},
+			}, */
 		},
 		CommandNotFound: func(ctx context.Context, cmd *cli.Command, command string) {
 			setting.Logger.Fatal().Msgf("Command %q not found.\nUsage: %s\n", command, cmd.UsageText)
@@ -333,16 +377,16 @@ func callAPI(ctx context.Context, cmd *cli.Command) error {
 	}
 	setting.Logger.Debug().Msgf("inside callAPI(), invoked by %q", cmd.Name)
 
-	// If we have no explicit output filename, write directly to stdout
+	// If we have no explicit output filename, write directly to stdout.
 	if len(setting.OutputFileName) == 0 {
 		setting.Logger.Debug().Msg("no output filename; writing to stdout instead")
-		// Warning: `source` is a global variable in this context!
+		// Warning: `source` is a global variable in this context!.
 		rawImage, err := source.ToBuffer()
 		if err != nil {
 			setting.Logger.Error().Err(err)
 			return err
 		}
-		// rawImage contains the raw image data; we push it out to STDOUT
+		// rawImage contains the raw image data; we push it out to STDOUT.
 		n, err := os.Stdout.Write(rawImage)
 		if err != nil {
 			setting.Logger.Error().Err(err)
@@ -368,6 +412,13 @@ func callAPI(ctx context.Context, cmd *cli.Command) error {
 // Tries to get a list
 func convert(ctx context.Context, cmd *cli.Command) error {
 	setting.Logger.Debug().Msg("convert called")
+
+	// user can request conversion to multiple file types, comma-separated; we need to spli
+	// these since our Convert logic presumes maps of strings, to properly JSONificta them,
+	if err := source.Convert(strings.Split(strings.ToLower(setting.FileType), ",")); err != nil {
+		return err
+	}
+	// again, note that `source` is a global.
 	return callAPI(ctx, cmd)
 }
 
@@ -400,4 +451,51 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 func compress(ctx context.Context, cmd *cli.Command) error {
 	setting.Logger.Debug().Msg("compress called")
 	return callAPI(ctx, cmd)
+}
+
+// Transform allows o remove the background (that's the only option in the Tinify API so far).
+func transform(ctx context.Context, cmd *cli.Command) error {
+	setting.Logger.Debug().Msg("transform called")
+	if len(setting.Transform) == 0 {
+		return fmt.Errorf("empty transformation type passed")
+	}
+	if err := source.Transform(&Tinify.TransformOptions{
+		Background: setting.Transform,
+	}); err != nil {
+		return err
+	}
+	return callAPI(ctx, cmd)
+}
+
+// Aux functions
+
+// check if this is a valid Hex value for a colour or not.
+// allow CSS RGB types of colours, with or without #
+// 3 digits, 6 digits, or 8 digits (for transpareny) accepted.
+// See https://stackoverflow.com/a/79589454/1035977
+// (gwyneth 20250713)
+func isValidHex(s string) bool {
+	n := len(s)
+
+	start := 0
+	if s[0] == '#' {
+		n--
+		start = 1
+	}
+	// check for valid ranges
+	if (start == 0 && !(n == 3 || n == 6 || n == 8)) ||
+		(start == 1 && !(n == 4 || n == 7 || n == 9)) {
+		return false
+	}
+
+	// must be "#xxx" or "#xxxxxx"
+	// check each hex digit
+	for i := start; i < n; i++ {
+		b := s[i] | 0x20             // fold A–F into a–f, digits unaffected
+		if b-'0' < 10 || b-'a' < 6 { // '0'–'9' or 'a'–'f' ?
+			continue
+		}
+		return false
+	}
+	return true
 }

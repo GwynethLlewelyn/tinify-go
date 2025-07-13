@@ -25,8 +25,9 @@ type ResizeOption struct {
 }
 
 type Source struct {
-	url      string
-	commands map[string]any
+	url              string
+	commands         map[string]any
+	compressionCount string // this is the number of compressions made with this API key this month; may become an integer in the future,
 }
 
 func newSource(url string, commands map[string]any) *Source {
@@ -92,6 +93,10 @@ func getSourceFromResponse(response *http.Response) (s *Source, err error) {
 	}
 
 	s = newSource(url, nil)
+	// Get number of compressions for this API key for this month, it comes in a header of its own.
+	// If the request didn't have such a header, that's ok, it'll just be an empty sring.
+	// (gwyneth 29250713)
+	s.compressionCount = response.Header["Compression-Count"][0]
 	return
 }
 

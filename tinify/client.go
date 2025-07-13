@@ -50,6 +50,9 @@ func (c *Client) Request(method string, urlRequest string, body any) (response *
 	}
 
 	// Clunky! But it works :-)
+	// If the body is a raw binary image, send it raw via an ioReader.
+	// Otherwise, the body will need to be sent as JSON (per API). So first we construct a JSONified
+	// representation of the struct we've got; and *then* send the result via an ioReader.
 	switch b := body.(type) {
 	case []byte:
 		if len(b /*body.([]byte)*/) > 0 {
@@ -57,12 +60,12 @@ func (c *Client) Request(method string, urlRequest string, body any) (response *
 		}
 	case map[string]any:
 		if len(b /*body.(map[string]interface{})*/) > 0 {
-			body2, err2 := json.Marshal(body)
+			bodyJSON, err2 := json.Marshal(body)
 			if err2 != nil {
 				err = err2
 				return
 			}
-			req.Body = io.NopCloser(bytes.NewReader(body2))
+			req.Body = io.NopCloser(bytes.NewReader(bodyJSON))
 		}
 		req.Header["Content-Type"] = []string{"application/json"}
 	default:
