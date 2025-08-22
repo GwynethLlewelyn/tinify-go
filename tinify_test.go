@@ -1,3 +1,5 @@
+// Test suite for main functionality
+
 package main
 
 import (

@@ -200,7 +200,7 @@ func main() {
 						Aliases:     []string{"g"},
 						Value:       0,
 						Usage:       "destination image height",
-						Destination: &setting.Width,
+						Destination: &setting.Height,
 					},
 				},
 			},
@@ -309,48 +309,7 @@ func main() {
 			Tinify.SetKey(setting.Key)
 			setting.Logger.Debug().Msgf("a TinyPNG key was found: [...%s]\n", setting.Key[len(setting.Key)-4:])
 
-			// Input file may be either an image filename or an URL; TinyPNG will handle both-
-			// Since `://` is hardly a valid filename, but a requirement for being an URL;
-			// handle URL later.
-			// Note that if setting.ImageName is unset, stdin is assumed, even if it might not yet work.
-			setting.Logger.Debug().Msgf("opening input file for reading: %q", setting.ImageName)
-			if setting.ImageName == "" || !strings.Contains(setting.ImageName, "://") {
-				if setting.ImageName == "" {
-					// empty filename; use stdin
-					f = os.Stdin
-					// Logging to console, so let the user knows that as well
-					setting.Logger.Info().Msg("empty filename; reading from console/stdin instead")
-				} else {
-					// check to see if we can open this file:
-					f, err = os.Open(setting.ImageName)
-					if err != nil {
-						return ctx, err
-					}
-					setting.Logger.Debug().Msgf("%q sucessfully opened", setting.ImageName)
-				}
-				// Get the image file from disk/stdin.
-				rawImage, err = io.ReadAll(f)
-				if err != nil {
-					return ctx, err
-				}
-
-				setting.Logger.Debug().Msgf("arg: %q (empty means stdin), size %d", setting.ImageName, len(rawImage))
-
-				// Now call the TinyPNG API
-				source, err = Tinify.FromBuffer(rawImage)
-				if err != nil {
-					return ctx, err
-				}
-			} else {
-				// we're assuming that we've got a valid URL, which might *not* be the case!
-				// TODO(Tasker): extra validation
-				source, err = Tinify.FromUrl(setting.ImageName)
-				if err != nil {
-					return ctx, err
-				}
-			}
-
-			return nil, nil
+			return ctx, nil
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// Everything not defined above happens here!
@@ -367,6 +326,52 @@ func main() {
 	}
 } // main
 
+// openStream attempts to open a file, stdin, or a URL, and passes the image along for
+// processing by the API.
+func openStream(ctx context.Context) (context.Context, error) {
+	// Input file may be either an image filename or an URL; TinyPNG will handle both.
+	// Since `://` is hardly a valid filename, but a requirement for being an URL,
+	// handle URL later.
+	// Note that if setting.ImageName is unset, stdin is assumed, even if it might not yet work.
+	setting.Logger.Debug().Msgf("opening input file for reading: %q", setting.ImageName)
+	if setting.ImageName == "" || !strings.Contains(setting.ImageName, "://") {
+		if setting.ImageName == "" {
+			// empty filename; use stdin
+			f = os.Stdin
+			// Logging to console, so let the user knows that as well
+			setting.Logger.Info().Msg("empty filename; reading from console/stdin instead")
+		} else {
+			// check to see if we can open this file:
+			f, err = os.Open(setting.ImageName)
+			if err != nil {
+				return ctx, err
+			}
+			setting.Logger.Debug().Msgf("%q sucessfully opened", setting.ImageName)
+		}
+		// Get the image file from disk/stdin.
+		rawImage, err = io.ReadAll(f)
+		if err != nil {
+			return ctx, err
+		}
+
+		setting.Logger.Debug().Msgf("arg: %q (empty means stdin), size %d", setting.ImageName, len(rawImage))
+
+		// Now call the TinyPNG API
+		source, err = Tinify.FromBuffer(rawImage)
+		if err != nil {
+			return ctx, err
+		}
+	} else {
+		// we're assuming that we've got a valid URL, which might *not* be the case!
+		// TODO(Tasker): extra validation
+		source, err = Tinify.FromUrl(setting.ImageName)
+		if err != nil {
+			return ctx, err
+		}
+	}
+	return ctx, nil
+}
+
 var (
 	rawImage []byte         // raw image file, when loaded from disk.
 	err      error          // declared here due to scope issues.
@@ -375,7 +380,7 @@ var (
 )
 
 // All-purpose API call. Whatever is done, it happens on the globals.
-func callAPI(ctx context.Context, cmd *cli.Command) error {
+func callAPI(_ context.Context, cmd *cli.Command) error {
 	if len(cmd.Name) == 0 {
 		return fmt.Errorf("no command")
 	}
@@ -413,11 +418,16 @@ func callAPI(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-// Tries to get a list
+// Tries to get a list of types to covert to, and calls the API.
 func convert(ctx context.Context, cmd *cli.Command) error {
 	setting.Logger.Debug().Msg("convert called")
 
-	// user can request conversion to multiple file types, comma-separated; we need to spli
+	if ctx, err = openStream(ctx); err != nil {
+		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
+		return err
+	}
+
+	// user can request conversion to multiple file types, comma-separated; we need to split
 	// these since our Convert logic presumes maps of strings, to properly JSONificta them,
 	if err := source.Convert(strings.Split(strings.ToLower(setting.FileType), ",")); err != nil {
 		return err
@@ -435,7 +445,15 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("width and height cannot be simultaneously zero")
 	}
 
+	setting.Logger.Debug().Msg("now calling openStream()")
+
+	if ctx, err = openStream(ctx); err != nil {
+		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
+		return err
+	}
+
 	setting.Logger.Debug().Msg("now calling source.Resize()")
+
 	// method is a global too.
 	err := source.Resize(&Tinify.ResizeOption{
 		Method: Tinify.ResizeMethod(setting.Method),
@@ -454,6 +472,17 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 // Compress is the default.
 func compress(ctx context.Context, cmd *cli.Command) error {
 	setting.Logger.Debug().Msg("compress called")
+
+	if ctx, err = openStream(ctx); err != nil {
+		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
+		return err
+	}
+
+	if ctx, err = openStream(ctx); err != nil {
+		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
+		return err
+	}
+
 	return callAPI(ctx, cmd)
 }
 
@@ -463,6 +492,12 @@ func transform(ctx context.Context, cmd *cli.Command) error {
 	if len(setting.Transform) == 0 {
 		return fmt.Errorf("empty transformation type passed")
 	}
+
+	if ctx, err = openStream(ctx); err != nil {
+		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
+		return err
+	}
+
 	if err := source.Transform(&Tinify.TransformOptions{
 		Background: setting.Transform,
 	}); err != nil {
@@ -480,15 +515,19 @@ func transform(ctx context.Context, cmd *cli.Command) error {
 // (gwyneth 20250713)
 func isValidHex(s string) bool {
 	n := len(s)
+	// empty string or string with just a '#'?
+	if n == 0 {
+		return false
+	}
 
 	start := 0
 	if s[0] == '#' {
 		n--
 		start = 1
 	}
+
 	// check for valid ranges
-	if (start == 0 && !(n == 3 || n == 6 || n == 8)) ||
-		(start == 1 && !(n == 4 || n == 7 || n == 9)) {
+	if n != 4 && n != 6 && n != 8 {
 		return false
 	}
 
@@ -503,3 +542,35 @@ func isValidHex(s string) bool {
 	}
 	return true
 }
+
+/*
+// Chat GPT prefrs this variant...
+func isValidHexChatGPT(s string) bool {
+	n := len(s)
+	// empty string or string with just a '#'?
+	if n == 0 {
+		return false
+	}
+
+	start := 0
+	if s[0] == '#' {
+		n--
+		start = 1
+	}
+
+	// check for valid ranges
+	if n != 4 && n != 6 && n != 8 {
+		return false
+	}
+
+	// must be "#xxx" or "#xxxxxx"
+	// check each hex digit
+	for i := start; i < n; i++ {
+		b := s[i] | 0x20 // fold A–F into a–f, digits unaffected
+		if (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') {
+			continue
+		}
+		return false
+	}
+	return true
+} */
