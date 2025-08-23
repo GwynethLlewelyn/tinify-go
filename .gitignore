@@ -41,15 +41,13 @@ package-lock.json
 .prettierrc.json
 .env
 
-#
-logs
-
+# logs
+*.log
 profile.out
 coverage.html
 coverage.txt
 delay.txt
 
-*.log
 
 # executables
 tinify-go
@@ -70,9 +68,3 @@ tinify-go
 
 # Temporary debugger files
 __*
-
-# Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
-.glide/
-.idea/
-test_output/*.jpg
-temp
