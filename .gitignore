@@ -43,7 +43,6 @@ package-lock.json
 
 #
 logs
-testdata
 
 profile.out
 coverage.html

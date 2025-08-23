@@ -95,6 +95,17 @@ func main() {
 		tinifyDebugLevel,
 		Tinify.VERSION)
 
+	// Contains information about the compiled code in a format that urfave/cli likes.
+	metadata := map[string]any{
+		"Version":      versionInfo.version,
+		"Commit":       versionInfo.commit,
+		"Date":         versionInfo.dateString,
+		"Built by":     versionInfo.builtBy,
+		"OS":           versionInfo.goOS,
+		"Architecture": versionInfo.goARCH,
+		"Go version":   versionInfo.goVersion,
+	}
+
 	// start CLI app
 	cmd := &cli.Command{
 		Name:                  "tinify-go",
@@ -104,7 +115,7 @@ func main() {
 		DefaultCommand:        "compress",
 		EnableShellCompletion: true,
 		Suggest:               true, // see https://cli.urfave.org/v3/examples/help/suggestions/
-		//		Compiled: versionInfo.date,		// Converted from RFC333
+		Metadata:              metadata,
 		Authors: []any{
 			&mail.Address{Name: "gwpp", Address: "ganwenpeng1993@163.com"},
 			&mail.Address{Name: "Gwyneth Llewelyn", Address: "gwyneth.llewelyn@gwynethllewelyn.net"},
