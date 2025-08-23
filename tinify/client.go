@@ -12,15 +12,17 @@ import (
 	"time"
 )
 
+// Standard Tinify API endpoint.
 const API_ENDPOINT = "https://api.tinify.com"
 
+// This allows any consumer of this package to be aware of any proxies used.
 var tinifyProxyTransport *http.Transport
 
 // Type for the TinyPNG API client.
 type Client struct {
-	options map[string]any
-	key     string // TinyPNG API key.
-	proxy   string // Specific HTTP(S) proxy server for this client.
+	options map[string]any // List of options to call the Tinify API.
+	key     string         // TinyPNG API key.
+	proxy   string         // Specific HTTP(S) proxy server for this client.
 }
 
 // Creates a new TinyPNG API client by allocating some memory for it.

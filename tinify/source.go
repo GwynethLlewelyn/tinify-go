@@ -189,6 +189,7 @@ func (s *Source) Transform(option *TransformOptions) error {
 	return nil
 }
 
+// toResult does the actual remote API call.
 func (s *Source) toResult() (r *Result, err error) {
 	if len(s.url) == 0 {
 		err = errors.New("url is empty")

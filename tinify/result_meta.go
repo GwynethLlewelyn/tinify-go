@@ -13,6 +13,7 @@ type ResultMeta struct {
 	meta http.Header
 }
 
+// NewResultMMeta creates a metadata object, reading the data
 func NewResultMeta(meta http.Header) *ResultMeta {
 	r := new(ResultMeta)
 	r.meta = meta

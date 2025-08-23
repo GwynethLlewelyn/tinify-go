@@ -1,4 +1,4 @@
-![Tinify API client for Golang logo](assets/tinify-go-logo-pangopher-128x128.png)
+![Tinify API client for Golang logo](testdata/assets/tinify-go-logo-pangopher-128x128.png)
 
 # Tinify API client for Golang
 
@@ -115,7 +115,7 @@ go build
 # or, if you prefer, `go install`
 ```
 
-and then invoke `./tinify-go --help` to get some basic instructions in what the CLI demonstrates.
+and then invoke `./tinify-go --help` to get some basic instructions for the CLI.
 
 ## License
 
