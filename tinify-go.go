@@ -56,6 +56,8 @@ var methods = []string{
 
 // Main starts here.
 func main() {
+	var err error // declared here due to scoping issues.
+
 	// Set up the version/runtime/debug-related variables, and cache them.
 	// `versionInfo` is a global which has very likely been already initialised.
 	if versionInfo, err = initVersionInfo(); err != nil {
@@ -131,7 +133,7 @@ func main() {
 					// Check if the debug level is valid:
 					// Must be one of the zerolog valid types
 					if setting.DebugLevel != "" {
-						if tinifyDebugLevel, err = zerolog.ParseLevel(setting.DebugLevel); err == nil {
+						if tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel); err == nil {
 							// Ok, valid error level selected, set it:
 							setting.Logger.Level(tinifyDebugLevel)
 							return nil
@@ -246,7 +248,7 @@ func main() {
 			{
 				Name:      "transform",
 				Aliases:   []string{"tr"},
-				Usage:     "processes image further (currently only replaces the background with a solid colour",
+				Usage:     "processes image further (currently only replaces the background with a solid colour)",
 				UsageText: "If you wish to convert an image with a transparent background to one with a solid background, specify a background property in the transform object.\nIf this property is provided, the background of a transparent image will be filled (only \"white\", \"black\", or a hex value are allowed).",
 				Action:    transform,
 				Flags: []cli.Flag{
@@ -328,11 +330,19 @@ func main() {
 
 // openStream attempts to open a file, stdin, or a URL, and passes the image along for
 // processing by the API.
-func openStream(ctx context.Context) (context.Context, error) {
+func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 	// Input file may be either an image filename or an URL; TinyPNG will handle both.
 	// Since `://` is hardly a valid filename, but a requirement for being an URL,
 	// handle URL later.
 	// Note that if setting.ImageName is unset, stdin is assumed, even if it might not yet work.
+
+	var (
+		err      error      // declared here due to scope issues.
+		f        = os.Stdin // file handler; STDIN by default.
+		rawImage []byte     // raw image file, when loaded from disk.
+		source   *Tinify.Source
+	)
+
 	setting.Logger.Debug().Msgf("opening input file for reading: %q", setting.ImageName)
 	if setting.ImageName == "" || !strings.Contains(setting.ImageName, "://") {
 		if setting.ImageName == "" {
@@ -344,14 +354,14 @@ func openStream(ctx context.Context) (context.Context, error) {
 			// check to see if we can open this file:
 			f, err = os.Open(setting.ImageName)
 			if err != nil {
-				return ctx, err
+				return ctx, nil, err
 			}
 			setting.Logger.Debug().Msgf("%q sucessfully opened", setting.ImageName)
 		}
 		// Get the image file from disk/stdin.
 		rawImage, err = io.ReadAll(f)
 		if err != nil {
-			return ctx, err
+			return ctx, nil, err
 		}
 
 		setting.Logger.Debug().Msgf("arg: %q (empty means stdin), size %d", setting.ImageName, len(rawImage))
@@ -359,28 +369,26 @@ func openStream(ctx context.Context) (context.Context, error) {
 		// Now call the TinyPNG API
 		source, err = Tinify.FromBuffer(rawImage)
 		if err != nil {
-			return ctx, err
+			return ctx, nil, err
 		}
 	} else {
 		// we're assuming that we've got a valid URL, which might *not* be the case!
 		// TODO(Tasker): extra validation
 		source, err = Tinify.FromUrl(setting.ImageName)
 		if err != nil {
-			return ctx, err
+			return ctx, nil, err
 		}
 	}
-	return ctx, nil
+	return ctx, source, nil
 }
 
-var (
-	rawImage []byte         // raw image file, when loaded from disk.
-	err      error          // declared here due to scope issues.
-	f        = os.Stdin     // file handler; STDIN by default.
-	source   *Tinify.Source // declared in advance to avoid scoping issues.
-)
-
 // All-purpose API call. Whatever is done, it happens on the globals.
-func callAPI(_ context.Context, cmd *cli.Command) error {
+func callAPI(_ context.Context, cmd *cli.Command, source *Tinify.Source) error {
+	var (
+		err      error  // declared here due to scope issues.
+		rawImage []byte // raw image file, when loaded from disk.
+	)
+
 	if len(cmd.Name) == 0 {
 		return fmt.Errorf("no command")
 	}
@@ -390,7 +398,7 @@ func callAPI(_ context.Context, cmd *cli.Command) error {
 	if len(setting.OutputFileName) == 0 {
 		setting.Logger.Debug().Msg("no output filename; writing to stdout instead")
 		// Warning: `source` is a global variable in this context!.
-		rawImage, err := source.ToBuffer()
+		rawImage, err = source.ToBuffer()
 		if err != nil {
 			setting.Logger.Error().Err(err)
 			return err
@@ -420,9 +428,14 @@ func callAPI(_ context.Context, cmd *cli.Command) error {
 
 // Tries to get a list of types to covert to, and calls the API.
 func convert(ctx context.Context, cmd *cli.Command) error {
+	var (
+		err    error // declared here due to scope issues.
+		source *Tinify.Source
+	)
+
 	setting.Logger.Debug().Msg("convert called")
 
-	if ctx, err = openStream(ctx); err != nil {
+	if ctx, source, err = openStream(ctx); err != nil {
 		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
 		return err
 	}
@@ -433,11 +446,15 @@ func convert(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	// again, note that `source` is a global.
-	return callAPI(ctx, cmd)
+	return callAPI(ctx, cmd, source)
 }
 
 // Resizes image, given a width and a height.
 func resize(ctx context.Context, cmd *cli.Command) error {
+	var (
+		err    error // declared here due to scope issues.
+		source *Tinify.Source
+	)
 	// width and height are globals.
 	setting.Logger.Debug().Msgf("resize called with width %d px and height %d px", setting.Width, setting.Height)
 	if setting.Width == 0 && setting.Height == 0 {
@@ -447,7 +464,7 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 
 	setting.Logger.Debug().Msg("now calling openStream()")
 
-	if ctx, err = openStream(ctx); err != nil {
+	if ctx, source, err = openStream(ctx); err != nil {
 		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
 		return err
 	}
@@ -455,7 +472,7 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 	setting.Logger.Debug().Msg("now calling source.Resize()")
 
 	// method is a global too.
-	err := source.Resize(&Tinify.ResizeOption{
+	err = source.Resize(&Tinify.ResizeOption{
 		Method: Tinify.ResizeMethod(setting.Method),
 		Width:  setting.Width, // replace by real value!
 		Height: setting.Height,
@@ -466,44 +483,49 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	return callAPI(ctx, cmd)
+	return callAPI(ctx, cmd, source)
 }
 
 // Compress is the default.
 func compress(ctx context.Context, cmd *cli.Command) error {
+	var (
+		err    error // declared here due to scope issues.
+		source *Tinify.Source
+	)
+
 	setting.Logger.Debug().Msg("compress called")
 
-	if ctx, err = openStream(ctx); err != nil {
+	if ctx, source, err = openStream(ctx); err != nil {
 		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
 		return err
 	}
 
-	if ctx, err = openStream(ctx); err != nil {
-		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
-		return err
-	}
-
-	return callAPI(ctx, cmd)
+	return callAPI(ctx, cmd, source)
 }
 
 // Transform allows o remove the background (that's the only option in the Tinify API so far).
 func transform(ctx context.Context, cmd *cli.Command) error {
+	var (
+		err    error // declared here due to scope issues.
+		source *Tinify.Source
+	)
+
 	setting.Logger.Debug().Msg("transform called")
 	if len(setting.Transform) == 0 {
 		return fmt.Errorf("empty transformation type passed")
 	}
 
-	if ctx, err = openStream(ctx); err != nil {
+	if ctx, source, err = openStream(ctx); err != nil {
 		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
 		return err
 	}
 
-	if err := source.Transform(&Tinify.TransformOptions{
+	if err = source.Transform(&Tinify.TransformOptions{
 		Background: setting.Transform,
 	}); err != nil {
 		return err
 	}
-	return callAPI(ctx, cmd)
+	return callAPI(ctx, cmd, source)
 }
 
 // Aux functions

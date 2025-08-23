@@ -12,13 +12,13 @@ import (
 
 func TestCompressFromFile(t *testing.T) {
 	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
-	source, err := Tinify.FromFile("./test.jpg")
+	source, err := Tinify.FromFile("./testdata/input/test.jpg")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = source.ToFile("./test_output/CompressFromFile.jpg")
+	err = source.ToFile("./testdata/output/CompressFromFile.jpg")
 	if err != nil {
 		t.Error(err)
 		return
@@ -29,7 +29,7 @@ func TestCompressFromFile(t *testing.T) {
 func TestCompressFromBuffer(t *testing.T) {
 	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 
-	buf, err := os.ReadFile("./test.jpg")
+	buf, err := os.ReadFile("./testdata/input/test.jpg")
 	if err != nil {
 		t.Error(err)
 		return
@@ -40,7 +40,7 @@ func TestCompressFromBuffer(t *testing.T) {
 		return
 	}
 
-	err = source.ToFile("./test_output/CompressFromBuffer.jpg")
+	err = source.ToFile("./testdata/output/CompressFromBuffer.jpg")
 	if err != nil {
 		t.Error(err)
 		return
@@ -56,7 +56,7 @@ func TestCompressFromUrl(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = source.ToFile("./test_output/CompressFromUrl.jpg")
+	err = source.ToFile("./testdata/output/CompressFromUrl.jpg")
 	if err != nil {
 		t.Error(err)
 		return
@@ -66,7 +66,7 @@ func TestCompressFromUrl(t *testing.T) {
 
 func TestResizeFromFile(t *testing.T) {
 	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
-	source, err := Tinify.FromFile("./test.jpg")
+	source, err := Tinify.FromFile("./testdata/input/test.jpg")
 	if err != nil {
 		t.Error(err)
 		return
@@ -82,7 +82,7 @@ func TestResizeFromFile(t *testing.T) {
 		return
 	}
 
-	err = source.ToFile("./test_output/ResizeFromFile.jpg")
+	err = source.ToFile("./testdata/output/ResizeFromFile.jpg")
 	if err != nil {
 		t.Error(err)
 		return
@@ -94,7 +94,7 @@ func TestResizeFromFile(t *testing.T) {
 func TestResizeFromBuffer(t *testing.T) {
 	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 
-	buf, err := os.ReadFile("./test.jpg")
+	buf, err := os.ReadFile("./testdata/input/test.jpg")
 	if err != nil {
 		t.Error(err)
 		return
@@ -114,7 +114,7 @@ func TestResizeFromBuffer(t *testing.T) {
 		return
 	}
 
-	err = source.ToFile("./test_output/ResizesFromBuffer.jpg")
+	err = source.ToFile("./testdata/output/ResizesFromBuffer.jpg")
 	if err != nil {
 		t.Error(err)
 		return
@@ -141,7 +141,7 @@ func TestResizeFromUrl(t *testing.T) {
 		return
 	}
 
-	err = source.ToFile("./test_output/ResizeFromUrl.jpg")
+	err = source.ToFile("./testdata/output/ResizeFromUrl.jpg")
 	if err != nil {
 		t.Error(err)
 		return

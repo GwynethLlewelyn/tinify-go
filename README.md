@@ -42,13 +42,13 @@ Remember, to use it, you need a valid Tinify API Key, passed wither with the `--
     ```golang
     func TestCompressFromFile(t *testing.T) {
         Tinify.SetKey(Key)
-        source, err := Tinify.FromFile("./test.jpg")
+        source, err := Tinify.FromFile("./testdata/input/test.jpg")
         if err != nil {
             t.Error(err)
             return
         }
 
-        err = source.ToFile("./test_output/CompressFromFile.jpg")
+        err = source.ToFile("./testdata/output/CompressFromFile.jpg")
         if err != nil {
             t.Error(err)
             return
@@ -63,7 +63,7 @@ Remember, to use it, you need a valid Tinify API Key, passed wither with the `--
     func TestResizeFromBuffer(t *testing.T) {
         Tinify.SetKey(Key)
 
-        buf, err := ioutil.ReadFile("./test.jpg")
+        buf, err := ioutil.ReadFile("./testdata/input/test.jpg")
         if err != nil {
             t.Error(err)
             return
@@ -83,7 +83,7 @@ Remember, to use it, you need a valid Tinify API Key, passed wither with the `--
             return
         }
 
-        err = source.ToFile("./test_output/ResizesFromBuffer.jpg")
+        err = source.ToFile("./testdata/output/ResizesFromBuffer.jpg")
         if err != nil {
             t.Error(err)
             return
