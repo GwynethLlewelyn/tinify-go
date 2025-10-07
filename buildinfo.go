@@ -100,15 +100,22 @@ func initVersionInfo() (vI *versionInfoType, err error) {
 
 // Returns a pretty-printed version of versionInfo, respecting the String() syntax.
 func (vI *versionInfoType) String() string {
+	// check if we have a valid builder's name; if yes, add it to the return string.
+	// (gwyneth 20251007)
+	var builtBy string
+	if len(vI.builtBy) > 0 {
+		builtBy = " by " + vI.builtBy
+	}
+
 	return fmt.Sprintf(
-		"\t%s\n\t(rev %s)\n\t[%s %s %s]\n\tBuilt on %s by %s",
+		"\t%s\n\t(rev %s)\n\t[%s %s %s]\n\tBuilt on %s%s",
 		vI.version,
 		vI.commit,
 		vI.goOS,
 		vI.goARCH,
 		vI.goVersion,
 		vI.dateString, // Date as string in RFC3339 notation.
-		vI.builtBy,    // see note at the top...
+		builtBy,
 	)
 }
 
