@@ -10,10 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GwynethLlewelyn/justify"
 	Tinify "github.com/gwpp/tinify-go/tinify"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/rs/zerolog"
 	"github.com/urfave/cli/v3"
+	"golang.org/x/term"
 )
 
 // No harm is done having just one context, which is simoly the background.
@@ -31,6 +33,7 @@ type Setting struct {
 	Width          int64          `json:"width"`            // Image width  (for resize operations).
 	Height         int64          `json:"height"`           // Image height (  "   "      "    "  ).
 	Transform      string         `json:"transform"`        // Transform the background to one of 'black', 'white', or hex value.
+	TerminalWidth  int            `json:"terminal_width"`   // If we're on a TTY, stores the width; 80 is default
 }
 
 // Global settings for this CLI app.
@@ -95,6 +98,17 @@ func main() {
 		tinifyDebugLevel,
 		Tinify.VERSION)
 
+	// check for terminal width if we're on a TTY
+	setting.TerminalWidth = 80
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		width, _, err := term.GetSize(int(os.Stdin.Fd()))
+		if err != nil {
+			setting.TerminalWidth = width
+		}
+	}
+
+	setting.Logger.Debug().Msgf("Terminal width set to %d", setting.TerminalWidth)
+
 	// Contains information about the compiled code in a format that urfave/cli likes.
 	metadata := map[string]any{
 		"Version":      versionInfo.version,
@@ -109,8 +123,8 @@ func main() {
 	// start CLI app
 	cmd := &cli.Command{
 		Name:                  "tinify-go",
-		Usage:                 "Calls the Tinify API from TinyPNG. Make sure you have TINIFY_API_KEY set!",
-		UsageText:             os.Args[0] + " [OPTION] [FLAGS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.",
+		Usage:                 justify.Justify("Calls the Tinify API from TinyPNG. Make sure you have TINIFY_API_KEY set!", setting.TerminalWidth),
+		UsageText:             justify.Justify(os.Args[0]+" [OPTION] [FLAGS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.", setting.TerminalWidth),
 		Version:               fmt.Sprint(versionInfo),
 		DefaultCommand:        "compress",
 		EnableShellCompletion: true,
@@ -120,7 +134,7 @@ func main() {
 			&mail.Address{Name: "gwpp", Address: "ganwenpeng1993@163.com"},
 			&mail.Address{Name: "Gwyneth Llewelyn", Address: "gwyneth.llewelyn@gwynethllewelyn.net"},
 		},
-		Copyright: fmt.Sprintf("© 2017-%d by Ganwen Peng. All rights reserved. Freely distributed under an MIT license.", time.Now().Year()),
+		Copyright: justify.Justify(fmt.Sprintf("© 2017-%d by Ganwen Peng. All rights reserved. Freely distributed under an MIT license.", time.Now().Year()), setting.TerminalWidth),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "input",
@@ -172,14 +186,14 @@ func main() {
 				Name:      "compress",
 				Aliases:   []string{"comp"},
 				Usage:     "compresses and optimises an image",
-				UsageText: "You can upload any image to the Tinify API to compress it. We will automatically detect the type of image (" + strings.Join(types, ", ") + ") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.",
+				UsageText: justify.Justify("You can upload any image to the Tinify API to compress it. We will automatically detect the type of image ("+strings.Join(types, ", ")+") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.", setting.TerminalWidth),
 				Action:    compress,
 			},
 			{
 				Name:      "resize",
 				Aliases:   []string{"r"},
 				Usage:     "resizes the image to a new size, using one of the possible methods",
-				UsageText: "Use the API to create resized versions of your uploaded images.\nBy letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.\nAvailable compression methods are: " + strings.Join(methods, ", "),
+				UsageText: justify.Justify("Use the API to create resized versions of your uploaded images.\nBy letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.\nAvailable compression methods are: "+strings.Join(methods, ", "), setting.TerminalWidth),
 				Action:    resize,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -221,7 +235,7 @@ func main() {
 				Name:      "convert",
 				Aliases:   []string{"conv"},
 				Usage:     "converts from one file type to another (" + strings.Join(types, ", ") + " supported)",
-				UsageText: "You can use the API to convert your images to your desired image type.\nTinify currently supports converting between: " + strings.Join(types, ", ") + ".\nWhen you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.",
+				UsageText: justify.Justify("You can use the API to convert your images to your desired image type.\nTinify currently supports converting between: "+strings.Join(types, ", ")+".\nWhen you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.", setting.TerminalWidth),
 				Action:    convert,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -260,7 +274,7 @@ func main() {
 				Name:      "transform",
 				Aliases:   []string{"tr"},
 				Usage:     "processes image further (currently only replaces the background with a solid colour)",
-				UsageText: "If you wish to convert an image with a transparent background to one with a solid background, specify a background property in the transform object.\nIf this property is provided, the background of a transparent image will be filled (only \"white\", \"black\", or a hex value are allowed).",
+				UsageText: justify.Justify("If you wish to convert an image with a transparent background to one with a solid background, specify a background property in the transform object.\nIf this property is provided, the background of a transparent image will be filled (only \"white\", \"black\", or a hex value are allowed).", setting.TerminalWidth),
 				Action:    transform,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -285,13 +299,6 @@ func main() {
 					},
 				},
 			},
-			/* 			{
-				Name:      "help",
-				Aliases:   []string{"h"},
-				Usage:     "Shows command help",
-				ArgsUsage: "[command]",
-				HideHelp:  false,
-			}, */
 		},
 		CommandNotFound: func(ctx context.Context, cmd *cli.Command, command string) {
 			setting.Logger.Fatal().Msgf("Command %q not found.\nUsage: %s\n", command, cmd.UsageText)
@@ -306,13 +313,7 @@ func main() {
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			// Setup phase
-			/*
-				cli.HelpFlag = &cli.BoolFlag{
-					Name:    "help",
-					Aliases: []string{"h"},
-					Usage:   "Shows command help",
-				}
-			*/
+
 			// Check if key is somewhat valid, i.e. has a decent amount of chars:
 			if len(setting.Key) < 5 {
 				return ctx, fmt.Errorf("invalid Tinify API key %q; too short — please check your key and try again\n", setting.Key)
@@ -575,35 +576,3 @@ func isValidHex(s string) bool {
 	}
 	return true
 }
-
-/*
-// Chat GPT prefrs this variant...
-func isValidHexChatGPT(s string) bool {
-	n := len(s)
-	// empty string or string with just a '#'?
-	if n == 0 {
-		return false
-	}
-
-	start := 0
-	if s[0] == '#' {
-		n--
-		start = 1
-	}
-
-	// check for valid ranges
-	if n != 4 && n != 6 && n != 8 {
-		return false
-	}
-
-	// must be "#xxx" or "#xxxxxx"
-	// check each hex digit
-	for i := start; i < n; i++ {
-		b := s[i] | 0x20 // fold A–F into a–f, digits unaffected
-		if (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') {
-			continue
-		}
-		return false
-	}
-	return true
-} */
