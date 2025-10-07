@@ -1,5 +1,5 @@
 // Test suite for auxiiary functions.
-
+// The main testing, done by gwpp, is under tinify_test.go
 package main
 
 import (

@@ -101,7 +101,7 @@ func initVersionInfo() (vI *versionInfoType, err error) {
 // Returns a pretty-printed version of versionInfo, respecting the String() syntax.
 func (vI *versionInfoType) String() string {
 	return fmt.Sprintf(
-		"\t%s\n\t(rev %s)\n\t[%s %s %s]\n\tBuilt on %s by %s]",
+		"\t%s\n\t(rev %s)\n\t[%s %s %s]\n\tBuilt on %s by %s",
 		vI.version,
 		vI.commit,
 		vI.goOS,

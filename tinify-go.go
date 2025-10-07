@@ -1,3 +1,7 @@
+// Original Go Tinify library: Copyright (c) 2017 gwpp
+// Distributed under a MIT licence.
+// Additional coding and CLI example (c) 2025 by Gwyneth Llewelyn,
+// also under a MIT licence.
 package main
 
 import (
@@ -123,7 +127,12 @@ func main() {
 	// start CLI app
 	cmd := &cli.Command{
 		Name:                  "tinify-go",
-		Usage:                 justify.Justify("Calls the Tinify API from TinyPNG. Make sure you have TINIFY_API_KEY set!", setting.TerminalWidth),
+		Usage:                 justify.Justify("Calls the Tinify API from TinyPNG " + func () string {
+			if len(setting.Key) < 5 {
+				return "(environment variable TINIFY_API_KEY not set or invalid key)"
+			}
+			return "(with key [..." + setting.Key[len(setting.Key)-4:] + "])"
+		}(), setting.TerminalWidth),
 		UsageText:             justify.Justify(os.Args[0]+" [OPTION] [FLAGS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.", setting.TerminalWidth),
 		Version:               fmt.Sprint(versionInfo),
 		DefaultCommand:        "compress",
@@ -230,6 +239,7 @@ func main() {
 						Destination: &setting.Height,
 					},
 				},
+
 			},
 			{
 				Name:      "convert",
@@ -321,7 +331,7 @@ func main() {
 
 			// Now safely set the API key
 			Tinify.SetKey(setting.Key)
-			setting.Logger.Debug().Msgf("a TinyPNG key was found: [...%s]\n", setting.Key[len(setting.Key)-4:])
+			setting.Logger.Debug().Msgf("a Tinify API key was found: [...%s]\n", setting.Key[len(setting.Key)-4:])
 
 			return ctx, nil
 		},
@@ -360,6 +370,12 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 		if setting.ImageName == "" {
 			// empty filename; use stdin
 			f = os.Stdin
+
+			// are we on a TTY, or getting content from a pipe?
+			if term.IsTerminal(int(f.Fd())) {
+				return ctx, nil, fmt.Errorf("cannot read interactively from a TTY; use --input or pipe a file to STDIN")
+			}
+
 			// Logging to console, so let the user knows that as well
 			setting.Logger.Info().Msg("empty filename; reading from console/stdin instead")
 		} else {

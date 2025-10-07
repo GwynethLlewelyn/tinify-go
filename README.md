@@ -111,7 +111,7 @@ To build it:
 
 ```shell
 cd $GOPATH/src/github.com/gwpp/tinify-go
-go build
+go build -ldflags "-X main.TheBuilder=$USER"
 # or, if you prefer, `go install`
 ```
 
