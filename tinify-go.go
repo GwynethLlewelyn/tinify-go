@@ -79,12 +79,13 @@ func main() {
 	// Grab flags
 
 	// Start zerolog setting.Logger.
-	// First, we need to figure out what the current level is. Very likely, at this stage, it's unset.
-	tinifyDebugLevel := zerolog.ErrorLevel
-	if tinifyDebugLevel, err = zerolog.ParseLevel(setting.DebugLevel); err != nil {
+	// Set to a reasonable default (i.e., "error").
+	tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel)
+	if err != nil {
 		tinifyDebugLevel = zerolog.ErrorLevel
+		setting.DebugLevel = tinifyDebugLevel.String()
 	}
-	// We're also using it for pretty-printing to the console.
+	// We're using it for pretty-printing to the console.
 	setting.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
 		Level(tinifyDebugLevel). // typecast from int8 to zerolog.Level
 		With().
@@ -126,8 +127,8 @@ func main() {
 
 	// start CLI app
 	cmd := &cli.Command{
-		Name:                  "tinify-go",
-		Usage:                 justify.Justify("Calls the Tinify API from TinyPNG " + func () string {
+		Name: "tinify-go",
+		Usage: justify.Justify("Calls the Tinify API from TinyPNG "+func() string {
 			if len(setting.Key) < 5 {
 				return "(environment variable TINIFY_API_KEY not set or invalid key)"
 			}
@@ -164,20 +165,10 @@ func main() {
 				Value:       "error",
 				Destination: &setting.DebugLevel,
 				Action: func(ctx context.Context, c *cli.Command, s string) error {
-					// Check if the debug level is valid:
-					// Must be one of the zerolog valid types
-					if setting.DebugLevel != "" {
-						if tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel); err == nil {
-							// Ok, valid error level selected, set it:
-							setting.Logger.Level(tinifyDebugLevel)
-							return nil
-						}
-					}
-					// Unknown error level, or empty error level, so fall back to "error"
-					setting.Logger.Level(zerolog.ErrorLevel)
-
-					return fmt.Errorf("unknown logging type %q, setting to \"error\" by default",
-						setting.DebugLevel)
+					// Check if the debug level is valid: it must be one of the zerolog valid types.
+					// NOTE: this will be set later on anyway...
+					fmt.Printf("Setting debug level to... %q\n", setting.DebugLevel)
+					return setLogLevel()
 				},
 			},
 		},
@@ -239,7 +230,6 @@ func main() {
 						Destination: &setting.Height,
 					},
 				},
-
 			},
 			{
 				Name:      "convert",
@@ -324,6 +314,13 @@ func main() {
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			// Setup phase
 
+			// force new debugging level, if it was set (gwyneth 20251007)
+			// NOTE: we can safely ignore the error here.
+			setLogLevel()
+
+			fmt.Printf("Log level is set to: %s(%d)\n", setting.Logger.GetLevel().String(),
+				setting.Logger.GetLevel())
+
 			// Check if key is somewhat valid, i.e. has a decent amount of chars:
 			if len(setting.Key) < 5 {
 				return ctx, fmt.Errorf("invalid Tinify API key %q; too short — please check your key and try again\n", setting.Key)
@@ -345,8 +342,16 @@ func main() {
 
 	//	cli.CommandHelpTemplate = commandHelpTemplate
 
+	// temporary debug here
+	fmt.Printf("Log level: %q(%d) Args: %#v\n",
+		setting.DebugLevel,
+		setting.Logger.GetLevel(),
+		os.Args,
+	)
+
 	if err := cmd.Run(ctx, os.Args); err != nil {
-		setting.Logger.Fatal().Err(err)
+		// setting.Logger.Fatal().Err(err)
+		setting.Logger.Fatal().Msg(err.Error())
 	}
 } // main
 
@@ -483,6 +488,9 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 		err    error // declared here due to scope issues.
 		source *Tinify.Source
 	)
+	fmt.Printf("resize called; debug is %q, method is %q, width is %d px, height is %d px\n",
+		setting.DebugLevel, setting.Method, setting.Width, setting.Height)
+
 	// width and height are globals.
 	setting.Logger.Debug().Msgf("resize called with width %d px and height %d px", setting.Width, setting.Height)
 	if setting.Width == 0 && setting.Height == 0 {
@@ -557,6 +565,25 @@ func transform(ctx context.Context, cmd *cli.Command) error {
 }
 
 // Aux functions
+
+// setLogLevel is just a macro-style thing to force the logging level to be set.
+func setLogLevel() error {
+	fmt.Printf("setDebugLevel: log level to be set: %q\n", setting.DebugLevel)
+	if setting.DebugLevel != "" {
+		if tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel); err == nil {
+			// Ok, valid error level selected, set it:
+			setting.Logger.Level(tinifyDebugLevel)
+			setting.DebugLevel = tinifyDebugLevel.String()
+			return nil
+		}
+	}
+	// Unknown error level, or empty error level, so fall back to "error"
+	setting.Logger.Level(zerolog.ErrorLevel)
+	setting.DebugLevel = zerolog.ErrorLevel.String()
+
+	return fmt.Errorf("unknown logging type %q, setting to \"error\" by default",
+		setting.DebugLevel)
+}
 
 // check if this is a valid Hex value for a colour or not.
 // allow CSS RGB types of colours, with or without #
