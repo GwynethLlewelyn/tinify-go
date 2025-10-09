@@ -122,6 +122,64 @@ func TestResizeFromBuffer(t *testing.T) {
 	t.Log("Resize successful")
 }
 
+// This ests if we're using scale with both width and hight set.
+func TestResizeFromBufferScaleWidthAndHeight(t *testing.T) {
+	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
+
+	buf, err := os.ReadFile("./testdata/input/test.jpg")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	source, err := Tinify.FromBuffer(buf)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = source.Resize(&Tinify.ResizeOption{
+		Method: Tinify.ResizeMethodScale,
+		Height: 256,
+		Width:  128,
+	})
+	// inverse logic, this *must* fail!
+	if err == nil {
+		t.Error("Resize with scale cannot have both width and height set!")
+		return
+	}
+
+	t.Log("Resize with scale using width and height both set was correctly flagged with error", err)
+}
+
+// This ests if we're using scale with both width and height set to zero.
+func TestResizeFromBufferScaleBothDimensionsZero(t *testing.T) {
+	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
+
+	buf, err := os.ReadFile("./testdata/input/test.jpg")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	source, err := Tinify.FromBuffer(buf)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = source.Resize(&Tinify.ResizeOption{
+		Method: Tinify.ResizeMethodScale,
+		/*		Height: 256,
+				Width:  128,*/
+	})
+	// inverse logic, this *must* fail!
+	if err == nil {
+		t.Error("Resize with scale cannot have both width and height set to zero!")
+		return
+	}
+
+	t.Log("Resize with scale using width and height both set to zero was correctly flagged with error", err)
+}
+
 func TestResizeFromUrl(t *testing.T) {
 	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 	url := "http://pic.tugou.com/realcase/1481255483_7311782.jpg"

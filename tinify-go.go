@@ -208,7 +208,7 @@ func main() {
 				Action: func(ctx context.Context, c *cli.Command, s string) error {
 					// Check if the debug level is valid: it must be one of the zerolog valid types.
 					// NOTE: this will be set later on anyway...
-					setting.Logger.Debug().Msgf("Setting debug level to... %q\n", setting.DebugLevel)
+					setting.Logger.Debug().Msgf("Setting debug level to... %q", setting.DebugLevel)
 					return setLogLevel()
 				},
 			},
@@ -342,14 +342,14 @@ func main() {
 			},
 		},
 		CommandNotFound: func(ctx context.Context, cmd *cli.Command, command string) {
-			setting.Logger.Fatal().Msgf("Command %q not found.\nUsage: %s\n", command, cmd.UsageText)
+			setting.Logger.Fatal().Msgf("Command %q not found.\nUsage: %s", command, cmd.UsageText)
 		},
 		OnUsageError: func(ctx context.Context, cmd *cli.Command, err error, isSubcommand bool) error {
 			if isSubcommand {
 				return err
 			}
 
-			setting.Logger.Error().Msgf("Wrong usage: %#v\n", err)
+			setting.Logger.Error().Msgf("Wrong usage: %#v", err)
 			return nil
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
@@ -359,18 +359,18 @@ func main() {
 			// NOTE: we can safely ignore the error here.
 			setLogLevel()
 
-			setting.Logger.Debug().Msgf("Log level is set to: %s(%d)\n",
+			setting.Logger.Debug().Msgf("Log level is set to: %s(%d)",
 				setting.Logger.GetLevel().String(),
 				setting.Logger.GetLevel())
 
 			// Check if key is somewhat valid, i.e. has a decent amount of chars:
 			if len(setting.Key) < 5 {
-				return ctx, fmt.Errorf("invalid Tinify API key %q; too short — please check your key and try again\n", setting.Key)
+				return ctx, fmt.Errorf("invalid Tinify API key %q; too short — please check your key and try again", setting.Key)
 			}
 
 			// Now safely set the API key
 			Tinify.SetKey(setting.Key)
-			setting.Logger.Debug().Msgf("a Tinify API key was found: [...%s]\n", setting.Key[len(setting.Key)-4:])
+			setting.Logger.Debug().Msgf("a Tinify API key was found: [...%s]", setting.Key[len(setting.Key)-4:])
 
 			return ctx, nil
 		},
@@ -384,7 +384,7 @@ func main() {
 
 	//	cli.CommandHelpTemplate = commandHelpTemplate
 
-	setting.Logger.Debug().Msgf("Log level: %q(%d) Args: %#v\n",
+	setting.Logger.Debug().Msgf("Log level: %q(%d) Args: %#v",
 		setting.DebugLevel,
 		setting.Logger.GetLevel(),
 		os.Args,
@@ -529,11 +529,10 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 		err    error // declared here due to scope issues.
 		source *Tinify.Source
 	)
-	setting.Logger.Debug().Msgf("resize called; debug is %q, method is %q, width is %d px, height is %d px\n",
+	setting.Logger.Debug().Msgf("resize called; debug is %q, method is %q, width is %d px, height is %d px",
 		setting.DebugLevel, setting.Method, setting.Width, setting.Height)
 
 	// width and height are globals.
-	setting.Logger.Debug().Msgf("resize called with width %d px and height %d px", setting.Width, setting.Height)
 	if setting.Width == 0 && setting.Height == 0 {
 		setting.Logger.Error().Msg("width and height cannot be simultaneously zero")
 		return fmt.Errorf("width and height cannot be simultaneously zero")

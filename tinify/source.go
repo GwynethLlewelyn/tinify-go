@@ -131,23 +131,22 @@ func (s *Source) Resize(option *ResizeOption) error {
 		return errors.New("option for resize is required")
 	}
 	// "scale" can only have width or height set, but not both!
-	if option.Method == "scale" {
+	if option.Method == ResizeMethodScale {
 		if option.Width != 0 && option.Height != 0 {
 			return errors.New("resize with scale method can only have either width or height set, but not both")
 		}
 		if option.Width == 0 && option.Height == 0 {
 			return errors.New("resize with scale method cannot have width and height both set to zero")
 		}
+	} else {
+		// for all other methods, the smallest possible value is 1!
+		if option.Width < 1 {
+			return errors.New("width must be >=1")
+		}
+		if option.Height < 1 {
+			return errors.New("height must be >=1")
+		}
 	}
-
-	// for all other methods, the smallest possible value is 1!
-	if option.Width < 1 {
-		return errors.New("width must be >=1")
-	}
-	if option.Height < 1 {
-		return errors.New("height must be >=1")
-	}
-
 	s.commands["resize"] = option
 
 	return nil
