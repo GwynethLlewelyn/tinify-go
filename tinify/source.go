@@ -20,8 +20,8 @@ type ResizeMethod string
 // JSONified type for selecting resize options.
 type ResizeOption struct {
 	Method ResizeMethod `json:"method"`
-	Width  int64        `json:"width"`
-	Height int64        `json:"height"`
+	Width  int64        `json:"width,omitempty"`
+	Height int64        `json:"height,omitempty"`
 }
 
 type Source struct {
@@ -125,9 +125,27 @@ func (s *Source) ToBuffer() (rawData []byte, err error) {
 	return
 }
 
+// Checks errors in the list of commands for a resizing operation.
 func (s *Source) Resize(option *ResizeOption) error {
 	if option == nil {
 		return errors.New("option for resize is required")
+	}
+	// "scale" can only have width or height set, but not both!
+	if option.Method == "scale" {
+		if option.Width != 0 && option.Height != 0 {
+			return errors.New("resize with scale method can only have either width or height set, but not both")
+		}
+		if option.Width == 0 && option.Height == 0 {
+			return errors.New("resize with scale method cannot have width and height both set to zero")
+		}
+	}
+
+	// for all other methods, the smallest possible value is 1!
+	if option.Width < 1 {
+		return errors.New("width must be >=1")
+	}
+	if option.Height < 1 {
+		return errors.New("height must be >=1")
 	}
 
 	s.commands["resize"] = option
