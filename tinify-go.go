@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/mail"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -76,24 +77,64 @@ func main() {
 	// and merge with the existing environment.
 	setting.Key = os.Getenv("TINIFY_API_KEY")
 
-	// Grab flags
+	// testing zerolog:
 
-	// Start zerolog setting.Logger.
-	// Set to a reasonable default (i.e., "error").
-	tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel)
-	if err != nil {
-		tinifyDebugLevel = zerolog.ErrorLevel
-		setting.DebugLevel = tinifyDebugLevel.String()
-	}
-	// We're using it for pretty-printing to the console.
-	setting.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
-		Level(tinifyDebugLevel). // typecast from int8 to zerolog.Level
+	setting.Logger = zerolog.New(zerolog.ConsoleWriter{
+		Out:        os.Stderr,
+		TimeFormat: time.DateTime,
+		PartsOrder: []string{
+			zerolog.TimestampFieldName,
+			zerolog.LevelFieldName,
+			zerolog.MessageFieldName,
+			zerolog.CallerFieldName,
+		},
+		FormatCaller: func(i any) string {
+			return "(" + filepath.Base(fmt.Sprintf("%s", i)) + ")"
+		},
+	}).
+		Level(zerolog.TraceLevel).
 		With().
-		Timestamp().
 		Caller().
+		Timestamp().
 		//		Int("pid", os.Getpid()).
-		//		Str("go_version", buildInfo.oVersion).
+		//		Str("go_version", versionInfo.goVersion).
 		Logger()
+
+	//os.Exit(0)
+	/*
+		// Force debug mode!
+		setting.DebugLevel = zerolog.LevelDebugValue
+
+		// Start zerolog setting.Logger.
+		// Set to a reasonable default (i.e., "error").
+		tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel)
+		if err != nil {
+			tinifyDebugLevel = zerolog.ErrorLevel
+			setting.DebugLevel = tinifyDebugLevel.String()
+		}
+		// We're using it for pretty-printing to the console.
+		setting.Logger = zerolog.New(zerolog.ConsoleWriter{
+			Out: os.Stderr, TimeFormat: time.DateTime,
+			PartsOrder: []string{
+				zerolog.TimestampFieldName,
+				zerolog.LevelFieldName,
+				zerolog.MessageFieldName,
+				zerolog.CallerFieldName,
+			},
+			FormatCaller: func(i any) string {
+				return filepath.Base(fmt.Sprintf("%s", i))
+			},
+		}).
+			Level(tinifyDebugLevel). // typecast from int8 to zerolog.Level
+			With().
+			Timestamp().
+			Caller().
+			//		Int("pid", os.Getpid()).
+			//		Str("go_version", buildInfo.oVersion).
+			Logger()
+	*/
+
+	tinifyDebugLevel := zerolog.TraceLevel
 
 	// Note that the zerolog setting.Logger is *always* returned; if it cannot write to the log
 	// for some reason, that error will be handled by the zerolog passage, thus
@@ -167,7 +208,7 @@ func main() {
 				Action: func(ctx context.Context, c *cli.Command, s string) error {
 					// Check if the debug level is valid: it must be one of the zerolog valid types.
 					// NOTE: this will be set later on anyway...
-					fmt.Printf("Setting debug level to... %q\n", setting.DebugLevel)
+					setting.Logger.Debug().Msgf("Setting debug level to... %q\n", setting.DebugLevel)
 					return setLogLevel()
 				},
 			},
@@ -318,7 +359,8 @@ func main() {
 			// NOTE: we can safely ignore the error here.
 			setLogLevel()
 
-			fmt.Printf("Log level is set to: %s(%d)\n", setting.Logger.GetLevel().String(),
+			setting.Logger.Debug().Msgf("Log level is set to: %s(%d)\n",
+				setting.Logger.GetLevel().String(),
 				setting.Logger.GetLevel())
 
 			// Check if key is somewhat valid, i.e. has a decent amount of chars:
@@ -342,8 +384,7 @@ func main() {
 
 	//	cli.CommandHelpTemplate = commandHelpTemplate
 
-	// temporary debug here
-	fmt.Printf("Log level: %q(%d) Args: %#v\n",
+	setting.Logger.Debug().Msgf("Log level: %q(%d) Args: %#v\n",
 		setting.DebugLevel,
 		setting.Logger.GetLevel(),
 		os.Args,
@@ -488,7 +529,7 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 		err    error // declared here due to scope issues.
 		source *Tinify.Source
 	)
-	fmt.Printf("resize called; debug is %q, method is %q, width is %d px, height is %d px\n",
+	setting.Logger.Debug().Msgf("resize called; debug is %q, method is %q, width is %d px, height is %d px\n",
 		setting.DebugLevel, setting.Method, setting.Width, setting.Height)
 
 	// width and height are globals.
@@ -568,7 +609,7 @@ func transform(ctx context.Context, cmd *cli.Command) error {
 
 // setLogLevel is just a macro-style thing to force the logging level to be set.
 func setLogLevel() error {
-	fmt.Printf("setDebugLevel: log level to be set: %q\n", setting.DebugLevel)
+	setting.Logger.Debug().Msgf("setDebugLevel: log level to be set: %q\n", setting.DebugLevel)
 	if setting.DebugLevel != "" {
 		if tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel); err == nil {
 			// Ok, valid error level selected, set it:
