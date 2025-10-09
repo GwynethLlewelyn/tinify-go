@@ -83,7 +83,6 @@ func main() {
 		Out:        os.Stderr,
 		TimeFormat: time.DateTime,
 		PartsOrder: []string{
-			zerolog.TimestampFieldName,
 			zerolog.LevelFieldName,
 			zerolog.MessageFieldName,
 			zerolog.CallerFieldName,
@@ -95,9 +94,6 @@ func main() {
 		Level(zerolog.TraceLevel).
 		With().
 		Caller().
-		Timestamp().
-		//		Int("pid", os.Getpid()).
-		//		Str("go_version", versionInfo.goVersion).
 		Logger()
 
 	//os.Exit(0)
@@ -135,6 +131,7 @@ func main() {
 	*/
 
 	tinifyDebugLevel := zerolog.TraceLevel
+	setting.DebugLevel = zerolog.LevelTraceValue
 
 	// Note that the zerolog setting.Logger is *always* returned; if it cannot write to the log
 	// for some reason, that error will be handled by the zerolog passage, thus
@@ -359,7 +356,7 @@ func main() {
 			// NOTE: we can safely ignore the error here.
 			setLogLevel()
 
-			setting.Logger.Debug().Msgf("Log level is set to: %s(%d)",
+			setting.Logger.Debug().Msgf("Log level is set to: %q(%d)",
 				setting.Logger.GetLevel().String(),
 				setting.Logger.GetLevel())
 
@@ -384,10 +381,9 @@ func main() {
 
 	//	cli.CommandHelpTemplate = commandHelpTemplate
 
-	setting.Logger.Debug().Msgf("Log level: %q(%d) Args: %#v",
+	setting.Logger.Debug().Msgf("Log level: %q(%d)",
 		setting.DebugLevel,
 		setting.Logger.GetLevel(),
-		os.Args,
 	)
 
 	if err := cmd.Run(ctx, os.Args); err != nil {
@@ -608,7 +604,7 @@ func transform(ctx context.Context, cmd *cli.Command) error {
 
 // setLogLevel is just a macro-style thing to force the logging level to be set.
 func setLogLevel() error {
-	setting.Logger.Debug().Msgf("setDebugLevel: log level to be set: %q\n", setting.DebugLevel)
+	setting.Logger.Debug().Msgf("setDebugLevel: log level to be set: %q", setting.DebugLevel)
 	if setting.DebugLevel != "" {
 		if tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel); err == nil {
 			// Ok, valid error level selected, set it:
