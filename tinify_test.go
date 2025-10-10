@@ -23,7 +23,7 @@ func TestCompressFromFile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	t.Logf("Compress successful, %d tokens left", tokens)
+	t.Logf("Compress successful, %d tokens consumed", tokens)
 }
 
 func TestCompressFromBuffer(t *testing.T) {
@@ -45,7 +45,7 @@ func TestCompressFromBuffer(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	t.Logf("Compress successful, %d tokens left", tokens)
+	t.Logf("Compress successful, %d tokens consumed", tokens)
 }
 
 func TestCompressFromUrl(t *testing.T) {
@@ -62,7 +62,7 @@ func TestCompressFromUrl(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	t.Logf("Compress successful, %d tokens left", tokens)
+	t.Logf("Compress successful, %d tokens consumed", tokens)
 }
 
 func TestResizeFromFile(t *testing.T) {
@@ -90,7 +90,7 @@ func TestResizeFromFile(t *testing.T) {
 		return
 	}
 
-	t.Logf("Resize successful, %d tokens left", tokens)
+	t.Logf("Resize successful, %d tokens consumed", tokens)
 }
 
 func TestResizeFromBuffer(t *testing.T) {
@@ -122,7 +122,7 @@ func TestResizeFromBuffer(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	t.Logf("Resize successful, %d tokens left", tokens)
+	t.Logf("Resize successful, %d tokens consumed", tokens)
 }
 
 // This ests if we're using scale with both width and height set.
@@ -208,5 +208,5 @@ func TestResizeFromUrl(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	t.Logf("Resize successful, %d tokens left", tokens)
+	t.Logf("Resize successful, %d tokens consumed", tokens)
 }
