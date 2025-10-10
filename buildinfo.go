@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"runtime/debug"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
 // versionInfoType holds the relevant information for this build.
@@ -26,7 +28,7 @@ type versionInfoType struct {
 
 // NOTE: I don't know where the "builtBy" information comes from, so, right now, it gets injected
 // during build time, e.g. `go build -ldflags "-X main.TheBuilder=gwyneth"` (gwyneth 20231103)
-// NOTE: debugLevel is set in main.
+// NOTE: LoggingLevel is set in main.
 
 var (
 	versionInfo *versionInfoType // cached values for this build.
@@ -86,8 +88,10 @@ func initVersionInfo() (vI *versionInfoType, err error) {
 		// However, the AI revision bots dislike this, so we'll assign the current date instead.
 		vI.date = time.Now()
 
-		if setting.DebugLevel == "debug" || setting.DebugLevel == "info" || setting.DebugLevel == "trace" || setting.DebugLevel == "error" {
-			fmt.Fprintf(os.Stderr, "date parse error: %v", parseErr)
+		// We'll log this just in case.
+		switch setting.LoggingLevel {
+		case zerolog.LevelTraceValue, zerolog.LevelDebugValue, zerolog.LevelErrorValue, zerolog.LevelInfoValue:
+			fmt.Fprintf(os.Stderr, "date parse error: %v — falling back to today", parseErr)
 		}
 	}
 

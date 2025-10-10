@@ -1,6 +1,7 @@
 package Tinify
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -24,10 +25,17 @@ type ResizeOption struct {
 	Height int64        `json:"height,omitempty"`
 }
 
+// Main object type for returning a result.
 type Source struct {
-	url              string
-	commands         map[string]any
-	compressionCount string // this is the number of compressions made with this API key this month; may become an integer in the future,
+	url              string         // URL to retrieve from.
+	commands         map[string]any // Commands passed to the Tinify API.
+	compressionCount string         // This is the number of compressions made with this API key this month; may become an integer in the future,
+}
+
+// JSONified type for error messages from the Tinify API, if present.
+type ErrorMessage struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
 }
 
 func newSource(url string, commands map[string]any) *Source {
@@ -100,23 +108,51 @@ func getSourceFromResponse(response *http.Response) (s *Source, err error) {
 	return
 }
 
-func (s *Source) ToFile(path string) error {
-	result, err := s.toResult()
-	if err != nil {
-		return err
-	}
-
-	return result.ToFile(path)
+// ToFile is a wrapper that grabs the content of the result and writes to a file.
+// The compression count is discarded.
+//
+// Obsolete: kept here only for compatibility purposes.
+func (s *Source) ToFile(path string) (err error) {
+	_, err = s.ToFileC(path)
+	return
 }
 
-// ToBuffer() extracts the raw data (an image) from the result.
+// ToFileC is a wrapper that grabs the content of the result and writes to a file.
+// The compression count is returned as well.
+//
+// Supersedes `ToFile()`.
+func (s *Source) ToFileC(path string) (int64, error) {
+	result, err := s.toResult()
+	if err != nil {
+		return result.compressionCount(), err
+	}
+
+	return result.compressionCount(), result.ToFile(path)
+}
+
+// ToBuffer extracts the raw data (an image) from the result.
 // It's similar in concept to ToFile, but allows sending the data to STDOUT, for instance.
-// (gwyneth 20230209)
+// (gwyneth 20230209)//
+//
+// Obsolete: kept here only for compatibility purposes.
 func (s *Source) ToBuffer() (rawData []byte, err error) {
+	rawData, _, err = s.ToBufferC()
+	return
+}
+
+// ToBufferC extracts the raw data (an image) from the result, also returning
+// the compression count.
+//
+// Supersedes `ToBuffer()`
+func (s *Source) ToBufferC() (rawData []byte, count int64, err error) {
 	result, err := s.toResult()
 	if err != nil {
 		return
 	}
+
+	// Extract the compression count, even if the subsequent raw data
+	// extraction fails.
+	count = result.compressionCount()
 
 	rawData = result.Data() // this is result.data, but may not be in the future, who knows? (gwyneth 20231209)
 	if len(rawData) == 0 {
@@ -206,7 +242,9 @@ func (s *Source) Transform(option *TransformOptions) error {
 	return nil
 }
 
-// toResult does the actual remote API call.
+// toResult does the actual remote API call. It returns either a *Result or nil with an error
+// message covering most possibilities of failure.
+// The Tinify API specifies that all errors come as properly-formatted JSON, but we check even for that.
 func (s *Source) toResult() (r *Result, err error) {
 	if len(s.url) == 0 {
 		err = errors.New("url is empty")
@@ -218,11 +256,35 @@ func (s *Source) toResult() (r *Result, err error) {
 		return
 	}
 
+	// NOTE: if the request succeeds, but the API found an error, it returns with a JSON
+	// indicating the error.
 	data, err := io.ReadAll(response.Body)
+
+	// did we get an error code from the API call?
+	// Note: we consider all JSON answers as "errors", evn if the API doesn't mandate that.
+	if response.StatusCode >= 400 || response.Header.Get("Content-Type") == "application/json" {
+		// we got an error but couldn't retrieve any data:
+		if err != nil {
+			// we can only retrieve the Status line with a short error
+			return nil, errors.New(response.Status)
+		}
+		// otherwise, we can return the error by unmarshalling the received JSONified error:
+		var errMsg ErrorMessage
+
+		if jErr := json.Unmarshal(data, &errMsg); jErr != nil {
+			// Unmarshalling failed, but we still have
+			return nil, fmt.Errorf("Tinify API call failed, HTTP status was %q, couldn't unmarshal JSON body: error %q", response.Status, jErr)
+		}
+		// We've successfully decoded the error message, so we can return it:
+		return nil, fmt.Errorf("Tinify API call failed, HTTP status was %q. Error: %s Message: %s",
+			response.Status, errMsg.Error, errMsg.Message)
+	}
+	// At this stage, the only error we have is from a failed decoded body data.
 	if err != nil {
 		return
 	}
 
+	// No errors found. The result can be sent back to the caller.
 	r = NewResult(response.Header, data)
 	return
 }

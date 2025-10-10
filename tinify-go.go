@@ -28,17 +28,18 @@ var ctx = context.Background()
 
 // Type to hold the global variables for all possible calls.
 type Setting struct {
-	DebugLevel     string         `json:"debug_level"`      // Debug/verbosity level, "error" by default
-	ImageName      string         `json:"image_name"`       // Filename or URL.
-	OutputFileName string         `json:"output_file_name"` // If set, it's the output filename; if not, well...
-	FileType       string         `json:"file_type"`        // Any set of webp, png, jpg, avif.
-	Key            string         `json:"key"`              // TinyPNG API key; can be on environment or read from .env.
-	Logger         zerolog.Logger `json:"-"`                // The main setting.Logger. Probably not necessary.
-	Method         string         `json:"method"`           // Resizing method (scale, fit, cover, thumb).
-	Width          int64          `json:"width"`            // Image width  (for resize operations).
-	Height         int64          `json:"height"`           // Image height (  "   "      "    "  ).
-	Transform      string         `json:"transform"`        // Transform the background to one of 'black', 'white', or hex value.
-	TerminalWidth  int            `json:"terminal_width"`   // If we're on a TTY, stores the width; 80 is default
+	LoggingLevel     string         `json:"log_level"`         // Debug/verbosity level, "error" by default
+	ImageName        string         `json:"image_name"`        // Filename or URL.
+	OutputFileName   string         `json:"output_file_name"`  // If set, it's the output filename; if not, well...
+	FileType         string         `json:"file_type"`         // Any set of webp, png, jpg, avif.
+	Key              string         `json:"key"`               // TinyPNG API key; can be on environment or read from .env.
+	Logger           zerolog.Logger `json:"-"`                 // The main setting.Logger.
+	Method           string         `json:"method"`            // Resizing method (scale, fit, cover, thumb).
+	Width            int64          `json:"width"`             // Image width  (for resize operations).
+	Height           int64          `json:"height"`            // Image height (  "   "      "    "  ).
+	Transform        string         `json:"transform"`         // Transform the background to one of 'black', 'white', or hex value.
+	TerminalWidth    int            `json:"terminal_width"`    // If we're on a TTY, stores the width; 80 is default.
+	CompressionCount int64          `json:"compression_count"` // A measure of how many crdits are still left for further compression.
 }
 
 // Global settings for this CLI app.
@@ -99,14 +100,14 @@ func main() {
 	//os.Exit(0)
 	/*
 		// Force debug mode!
-		setting.DebugLevel = zerolog.LevelDebugValue
+		setting.LoggingLevel = zerolog.LevelDebugValue
 
 		// Start zerolog setting.Logger.
 		// Set to a reasonable default (i.e., "error").
-		tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel)
+		tinifyLoggingLevel, err := zerolog.ParseLevel(setting.LoggingLevel)
 		if err != nil {
-			tinifyDebugLevel = zerolog.ErrorLevel
-			setting.DebugLevel = tinifyDebugLevel.String()
+			tinifyLoggingLevel = zerolog.ErrorLevel
+			setting.LoggingLevel = tinifyLoggingLevel.String()
 		}
 		// We're using it for pretty-printing to the console.
 		setting.Logger = zerolog.New(zerolog.ConsoleWriter{
@@ -121,7 +122,7 @@ func main() {
 				return filepath.Base(fmt.Sprintf("%s", i))
 			},
 		}).
-			Level(tinifyDebugLevel). // typecast from int8 to zerolog.Level
+			Level(tinifyLoggingLevel). // typecast from int8 to zerolog.Level
 			With().
 			Timestamp().
 			Caller().
@@ -130,23 +131,27 @@ func main() {
 			Logger()
 	*/
 
-	tinifyDebugLevel := zerolog.TraceLevel
-	setting.DebugLevel = zerolog.LevelTraceValue
+	// while testing, temporarily override everything and put the loggr in trace mode.
+	tinifyLoggingLevel := zerolog.TraceLevel
+	setting.LoggingLevel = zerolog.LevelTraceValue
 
 	// Note that the zerolog setting.Logger is *always* returned; if it cannot write to the log
 	// for some reason, that error will be handled by the zerolog passage, thus
 	// the simple `Debug()` call here: if this _fails_, we've not done anything yet with
 	// the images, and can safely abort.
 	setting.Logger.Debug().Msgf("setting.Logger started at error level %v; tinify pkg version %s",
-		tinifyDebugLevel,
+		tinifyLoggingLevel,
 		Tinify.VERSION)
 
 	// check for terminal width if we're on a TTY
 	setting.TerminalWidth = 80
 	if term.IsTerminal(int(os.Stdin.Fd())) {
+		setting.Logger.Debug().Msgf("TTY detected on stdin")
 		width, _, err := term.GetSize(int(os.Stdin.Fd()))
-		if err != nil {
+		if err == nil {
 			setting.TerminalWidth = width
+		} else {
+			setting.Logger.Debug().Msgf("could not get the size of the TTY: %s", err)
 		}
 	}
 
@@ -200,12 +205,12 @@ func main() {
 				Name:        "debug",
 				Aliases:     []string{"d"},
 				Usage:       "debug level; \"error\" means no debug",
-				Value:       "error",
-				Destination: &setting.DebugLevel,
+				Value:       zerolog.LevelErrorValue,
+				Destination: &setting.LoggingLevel,
 				Action: func(ctx context.Context, c *cli.Command, s string) error {
 					// Check if the debug level is valid: it must be one of the zerolog valid types.
 					// NOTE: this will be set later on anyway...
-					setting.Logger.Debug().Msgf("Setting debug level to... %q", setting.DebugLevel)
+					setting.Logger.Debug().Msgf("cli.StringFlag(): setting debug level to... %q", setting.LoggingLevel)
 					return setLogLevel()
 				},
 			},
@@ -288,20 +293,20 @@ func main() {
 							if setting.FileType != "" {
 								typesFound := strings.Split(setting.FileType, ",")
 								if typesFound == nil {
-									return fmt.Errorf("no valid file types found")
+									return fmt.Errorf("convert: no valid file types found")
 								}
 								// A very inefficient way of checking if all file types are valid O(n).
 								// TODO(gwyneth): See if there is already a library function for this,
 								// or use a different, linear approach.
 								for _, aFoundType := range typesFound {
 									if !slices.Contains(types, aFoundType) {
-										return fmt.Errorf("invalid file format: %q", aFoundType)
+										return fmt.Errorf("convert: invalid file format: %q", aFoundType)
 									}
 								}
 								// if we're here, all file types are valid
-								setting.Logger.Debug().Msg("all file type parameters are valid")
+								setting.Logger.Debug().Msg("convert: all file type parameters are valid")
 							} else {
-								setting.Logger.Debug().Msg("no file type parameters found")
+								setting.Logger.Debug().Msg("convert: no file type parameters found")
 							}
 							return nil
 						},
@@ -330,7 +335,7 @@ func main() {
 							// Just check if the rmaining string is a valid hex string.
 							// (gwyneth 20250713)
 							if !isValidHex(setting.Transform) {
-								return fmt.Errorf("invalid hex value")
+								return fmt.Errorf("background colour: invalid hex value")
 							}
 							return nil
 						},
@@ -352,12 +357,16 @@ func main() {
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			// Setup phase
 
+			setting.Logger.Debug().Msgf("Before action inside loop: before calling setLogLevel(), logging level was: %q(%d)",
+				setting.LoggingLevel,
+				setting.Logger.GetLevel())
+
 			// force new debugging level, if it was set (gwyneth 20251007)
 			// NOTE: we can safely ignore the error here.
 			setLogLevel()
 
-			setting.Logger.Debug().Msgf("Log level is set to: %q(%d)",
-				setting.Logger.GetLevel().String(),
+			setting.Logger.Debug().Msgf("Before action inside loop: after calling setLogLevel(), log level is now set to: %q(%d)",
+				setting.LoggingLevel,
 				setting.Logger.GetLevel())
 
 			// Check if key is somewhat valid, i.e. has a decent amount of chars:
@@ -367,7 +376,7 @@ func main() {
 
 			// Now safely set the API key
 			Tinify.SetKey(setting.Key)
-			setting.Logger.Debug().Msgf("a Tinify API key was found: [...%s]", setting.Key[len(setting.Key)-4:])
+			setting.Logger.Debug().Msgf("Before action inside loop: a Tinify API key was found: [...%s]", setting.Key[len(setting.Key)-4:])
 
 			return ctx, nil
 		},
@@ -381,8 +390,8 @@ func main() {
 
 	//	cli.CommandHelpTemplate = commandHelpTemplate
 
-	setting.Logger.Debug().Msgf("Log level: %q(%d)",
-		setting.DebugLevel,
+	setting.Logger.Debug().Msgf("Log level before outside loop: %q(%d)",
+		setting.LoggingLevel,
 		setting.Logger.GetLevel(),
 	)
 
@@ -407,7 +416,7 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 		source   *Tinify.Source
 	)
 
-	setting.Logger.Debug().Msgf("opening input file for reading: %q", setting.ImageName)
+	setting.Logger.Debug().Msgf("openStream: opening input file for reading: %q", setting.ImageName)
 	if setting.ImageName == "" || !strings.Contains(setting.ImageName, "://") {
 		if setting.ImageName == "" {
 			// empty filename; use stdin
@@ -415,18 +424,18 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 
 			// are we on a TTY, or getting content from a pipe?
 			if term.IsTerminal(int(f.Fd())) {
-				return ctx, nil, fmt.Errorf("cannot read interactively from a TTY; use --input or pipe a file to STDIN")
+				return ctx, nil, fmt.Errorf("openStream: cannot read interactively from a TTY; use --input or pipe a file to STDIN")
 			}
 
 			// Logging to console, so let the user knows that as well
-			setting.Logger.Info().Msg("empty filename; reading from console/stdin instead")
+			setting.Logger.Info().Msg("openStream: empty filename; reading from console/stdin instead")
 		} else {
 			// check to see if we can open this file:
 			f, err = os.Open(setting.ImageName)
 			if err != nil {
 				return ctx, nil, err
 			}
-			setting.Logger.Debug().Msgf("%q sucessfully opened", setting.ImageName)
+			setting.Logger.Debug().Msgf("openStream: %q sucessfully opened", setting.ImageName)
 		}
 		// Get the image file from disk/stdin.
 		rawImage, err = io.ReadAll(f)
@@ -434,7 +443,7 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 			return ctx, nil, err
 		}
 
-		setting.Logger.Debug().Msgf("arg: %q (empty means stdin), size %d", setting.ImageName, len(rawImage))
+		setting.Logger.Debug().Msgf("openStream: arg: %q (empty means stdin), size %d", setting.ImageName, len(rawImage))
 
 		// Now call the TinyPNG API
 		source, err = Tinify.FromBuffer(rawImage)
@@ -466,9 +475,9 @@ func callAPI(_ context.Context, cmd *cli.Command, source *Tinify.Source) error {
 
 	// If we have no explicit output filename, write directly to stdout.
 	if len(setting.OutputFileName) == 0 {
-		setting.Logger.Debug().Msg("no output filename; writing to stdout instead")
+		setting.Logger.Debug().Msg("callAPI: no output filename; writing to stdout instead")
 		// Warning: `source` is a global variable in this context!.
-		rawImage, err = source.ToBuffer()
+		rawImage, setting.CompressionCount, err = source.ToBufferC()
 		if err != nil {
 			setting.Logger.Error().Err(err)
 			return err
@@ -480,19 +489,20 @@ func callAPI(_ context.Context, cmd *cli.Command, source *Tinify.Source) error {
 			return err
 		}
 
-		setting.Logger.Debug().Msgf("wrote %d byte(s) to stdout", n)
+		setting.Logger.Debug().Msgf("callAPI: wrote %d byte(s) to stdout; compression count: %d", n, setting.CompressionCount)
 		return nil
 	}
 
-	setting.Logger.Debug().Msgf("opening file %q for outputting image", setting.OutputFileName)
+	setting.Logger.Debug().Msgf("callAPI: opening file %q for outputting image", setting.OutputFileName)
 
 	// write to file, we have a special function for that already defined:
-	err = source.ToFile(setting.OutputFileName)
+	setting.CompressionCount, err = source.ToFileC(setting.OutputFileName)
 	if err != nil {
 		setting.Logger.Error().Err(err)
 		return err
 	}
 
+	setting.Logger.Debug().Msgf("callAPI: succesfully wrote to %q, compression count: %d", setting.OutputFileName, setting.CompressionCount)
 	return nil
 }
 
@@ -506,7 +516,7 @@ func convert(ctx context.Context, cmd *cli.Command) error {
 	setting.Logger.Debug().Msg("convert called")
 
 	if ctx, source, err = openStream(ctx); err != nil {
-		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
+		setting.Logger.Error().Msgf("convert: invalid filenames, error was %v", err)
 		return err
 	}
 
@@ -526,22 +536,22 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 		source *Tinify.Source
 	)
 	setting.Logger.Debug().Msgf("resize called; debug is %q, method is %q, width is %d px, height is %d px",
-		setting.DebugLevel, setting.Method, setting.Width, setting.Height)
+		setting.LoggingLevel, setting.Method, setting.Width, setting.Height)
 
 	// width and height are globals.
 	if setting.Width == 0 && setting.Height == 0 {
-		setting.Logger.Error().Msg("width and height cannot be simultaneously zero")
-		return fmt.Errorf("width and height cannot be simultaneously zero")
+		setting.Logger.Error().Msg("resize: width and height cannot be simultaneously zero")
+		return fmt.Errorf("resize: width and height cannot be simultaneously zero")
 	}
 
-	setting.Logger.Debug().Msg("now calling openStream()")
+	setting.Logger.Debug().Msg("resize: now calling openStream()")
 
 	if ctx, source, err = openStream(ctx); err != nil {
-		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
+		setting.Logger.Error().Msgf("resize: invalid filenames, error was %v", err)
 		return err
 	}
 
-	setting.Logger.Debug().Msg("now calling source.Resize()")
+	setting.Logger.Debug().Msg("resize: now calling source.Resize()")
 
 	// method is a global too.
 	err = source.Resize(&Tinify.ResizeOption{
@@ -568,7 +578,7 @@ func compress(ctx context.Context, cmd *cli.Command) error {
 	setting.Logger.Debug().Msg("compress called")
 
 	if ctx, source, err = openStream(ctx); err != nil {
-		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
+		setting.Logger.Error().Msgf("compress: invalid filenames, error was: %v", err)
 		return err
 	}
 
@@ -584,11 +594,11 @@ func transform(ctx context.Context, cmd *cli.Command) error {
 
 	setting.Logger.Debug().Msg("transform called")
 	if len(setting.Transform) == 0 {
-		return fmt.Errorf("empty transformation type passed")
+		return fmt.Errorf("transform: empty transformation type passed")
 	}
 
 	if ctx, source, err = openStream(ctx); err != nil {
-		setting.Logger.Error().Msgf("invalid filenames, error was %v", err)
+		setting.Logger.Error().Msgf("transform: invalid filenames, error was %v", err)
 		return err
 	}
 
@@ -604,21 +614,24 @@ func transform(ctx context.Context, cmd *cli.Command) error {
 
 // setLogLevel is just a macro-style thing to force the logging level to be set.
 func setLogLevel() error {
-	setting.Logger.Debug().Msgf("setDebugLevel: log level to be set: %q", setting.DebugLevel)
-	if setting.DebugLevel != "" {
-		if tinifyDebugLevel, err := zerolog.ParseLevel(setting.DebugLevel); err == nil {
+	setting.Logger.Debug().Msgf("setLogLevel(): log level to be set: %q", setting.LoggingLevel)
+	if len(setting.LoggingLevel) > 0 {
+		if tinifyLoggingLevel, err := zerolog.ParseLevel(setting.LoggingLevel); err == nil {
 			// Ok, valid error level selected, set it:
-			setting.Logger.Level(tinifyDebugLevel)
-			setting.DebugLevel = tinifyDebugLevel.String()
+			setting.Logger.Level(tinifyLoggingLevel)
+			setting.LoggingLevel = tinifyLoggingLevel.String()
 			return nil
+		} else {
+			setting.Logger.Debug().Msgf("setLogLevel(): error parsing logging level %q: %s",
+				setting.LoggingLevel, err)
 		}
 	}
-	// Unknown error level, or empty error level, so fall back to "error"
+	// Unknown logging level, or empty logging level, so fall back to "error"
 	setting.Logger.Level(zerolog.ErrorLevel)
-	setting.DebugLevel = zerolog.ErrorLevel.String()
+	setting.LoggingLevel = zerolog.ErrorLevel.String()
 
 	return fmt.Errorf("unknown logging type %q, setting to \"error\" by default",
-		setting.DebugLevel)
+		setting.LoggingLevel)
 }
 
 // check if this is a valid Hex value for a colour or not.

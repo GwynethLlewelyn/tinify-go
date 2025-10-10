@@ -20,6 +20,9 @@ func NewResultMeta(meta http.Header) *ResultMeta {
 	return r
 }
 
+// all other functions are private; public functions will be exposed only through the
+// Result object.
+
 func (r *ResultMeta) width() int64 {
 	w := r.meta["Image-Width"]
 	if len(w) == 0 {
@@ -46,8 +49,23 @@ func (r *ResultMeta) location() string {
 	return arr[0]
 }
 
-// TODO(gwyneth): add Compression-Count and other potentially relevant headers
-// (gwyneth 20231003)
+func (r *ResultMeta) size() int64 {
+	s := r.meta["Content-Length"]
+	if len(s) == 0 {
+		return 0
+	}
+
+	size, _ := strconv.Atoi(s[0]) // Atoi returns 0 if error
+	return int64(size)
+}
+
+func (r *ResultMeta) mediaType() string {
+	arr := r.meta["Content-Type"]
+	if len(arr) == 0 {
+		return ""
+	}
+	return arr[0]
+}
 
 // compressionCount returns how many times the user has invoked API calls.
 // The number is supposed to be reset every month, and there is a limit on the number of free calls

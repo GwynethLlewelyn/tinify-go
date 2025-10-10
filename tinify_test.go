@@ -17,13 +17,13 @@ func TestCompressFromFile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-
-	err = source.ToFile("./testdata/output/CompressFromFile.jpg")
+	var tokens int64
+	tokens, err = source.ToFileC("./testdata/output/CompressFromFile.jpg")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log("Compress successful")
+	t.Logf("Compress successful, %d tokens left", tokens)
 }
 
 func TestCompressFromBuffer(t *testing.T) {
@@ -39,13 +39,13 @@ func TestCompressFromBuffer(t *testing.T) {
 		t.Error(err)
 		return
 	}
-
-	err = source.ToFile("./testdata/output/CompressFromBuffer.jpg")
+	var tokens int64
+	tokens, err = source.ToFileC("./testdata/output/CompressFromBuffer.jpg")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log("Compress successful")
+	t.Logf("Compress successful, %d tokens left", tokens)
 }
 
 func TestCompressFromUrl(t *testing.T) {
@@ -56,12 +56,13 @@ func TestCompressFromUrl(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = source.ToFile("./testdata/output/CompressFromUrl.jpg")
+	var tokens int64
+	tokens, err = source.ToFileC("./testdata/output/CompressFromUrl.jpg")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log("Compress successful")
+	t.Logf("Compress successful, %d tokens left", tokens)
 }
 
 func TestResizeFromFile(t *testing.T) {
@@ -82,13 +83,14 @@ func TestResizeFromFile(t *testing.T) {
 		return
 	}
 
-	err = source.ToFile("./testdata/output/ResizeFromFile.jpg")
+	var tokens int64
+	tokens, err = source.ToFileC("./testdata/output/ResizeFromFile.jpg")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	t.Log("Resize successful")
+	t.Logf("Resize successful, %d tokens left", tokens)
 }
 
 func TestResizeFromBuffer(t *testing.T) {
@@ -114,15 +116,16 @@ func TestResizeFromBuffer(t *testing.T) {
 		return
 	}
 
-	err = source.ToFile("./testdata/output/ResizesFromBuffer.jpg")
+	var tokens int64
+	tokens, err = source.ToFileC("./testdata/output/ResizesFromBuffer.jpg")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log("Resize successful")
+	t.Logf("Resize successful, %d tokens left", tokens)
 }
 
-// This ests if we're using scale with both width and hight set.
+// This ests if we're using scale with both width and height set.
 func TestResizeFromBufferScaleWidthAndHeight(t *testing.T) {
 	Tinify.SetKey(os.Getenv("TINIFY_API_KEY"))
 
@@ -199,10 +202,11 @@ func TestResizeFromUrl(t *testing.T) {
 		return
 	}
 
-	err = source.ToFile("./testdata/output/ResizeFromUrl.jpg")
+	var tokens int64
+	tokens, err = source.ToFileC("./testdata/output/ResizeFromUrl.jpg")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log("Resize successful")
+	t.Logf("Resize successful, %d tokens left", tokens)
 }

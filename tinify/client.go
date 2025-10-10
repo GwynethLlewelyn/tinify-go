@@ -121,7 +121,7 @@ func (c *Client) reconfigureProxyTransport(proxyURL string) func(*http.Request) 
 }
 
 // Tinify module initialisation.
-// Currently just initialises tinifyProxyTransport as the default-
+// Currently just initialises tinifyProxyTransport as the default.
 func init() {
 	// initialise the transport; instructions say that transports should be reused, not
 	// created on demand; by default, uses whatever proxies are defined on the environment.

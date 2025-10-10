@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 )
 
 // Object returned by a call to the Tinify API.
@@ -46,25 +45,20 @@ func (r *Result) ToFile(path string) error {
 // Note that some web server implementations might not return this value, or it might
 // be incorrectly calculated.
 func (r *Result) Size() int64 {
-	s := r.meta["Content-Length"]
-	if len(s) == 0 {
-		return 0
-	}
-
-	size, _ := strconv.Atoi(s[0]) // Atoi returns 0 if error
-	return int64(size)
+	return r.ResultMeta.size()
 }
 
 // Returns the MIME type of this object, as retrieved from the headers in the result.
 func (r *Result) MediaType() string {
-	arr := r.meta["Content-Type"]
-	if len(arr) == 0 {
-		return ""
-	}
-	return arr[0]
+	return r.ResultMeta.mediaType()
 }
 
-// Deprecated: alias to `ContentType()` for backwards compatibility.
+// Deprecated: Alias to `MediatType()` for backwards compatibility.
 func (r *Result) ContentType() string {
-	return r.MediaType()
+	return r.ResultMeta.mediaType()
+}
+
+// Returns the numbr of compressions made so far.
+func (r *Result) CompressionCount() int64 {
+	return r.ResultMeta.compressionCount()
 }
