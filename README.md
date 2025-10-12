@@ -29,15 +29,15 @@ Note that this repository will install two different things:
 
 The client application serves both as a testing tool and as a stand-alone binary. It is very loosely based on other, similar client applications [written for other programming languages](https://github.com/tinify/).
 
-Remember, to use it, you need a valid Tinify API Key, passed wither with the `--key=XXXX` flag, or via the environment variable `TINIFY_API_KEY`.
+Remember, to use it, you need a valid Tinify API Key, passed via the environment variable `TINIFY_API_KEY`.
 
 ## Usage
 
-- About the TinyPNG API key
+### About the TinyPNG API key
 
     Get your API key from https://tinypng.com/developers
 
-- Compress
+### Compress
 
     ```golang
     func TestCompressFromFile(t *testing.T) {
@@ -57,7 +57,7 @@ Remember, to use it, you need a valid Tinify API Key, passed wither with the `--
     }
     ```
 
-- Resize
+### Resize
 
     ```golang
     func TestResizeFromBuffer(t *testing.T) {
@@ -92,11 +92,11 @@ Remember, to use it, you need a valid Tinify API Key, passed wither with the `--
     }
     ```
 
-- **_Notice:_**
+## ⚠️ Notice:
 
-    `Tinify.ResizeMethod()` supports `scale`, `fit` and `cover`. If you use either fit or cover, you must provide **both a width and a height**. But if you use scale, you must instead provide _either_ a target width _or_ a target height, **but not both**.
+    `Tinify.ResizeMethod()` supports `scale`, `fit`, `cover` and `thumbnail`. If you use `fit`/`cover`/`thumbnail`, you **must** provide **both a width and a height**. But if you use `scale`, you **must** instead provide _either_ a target width _or_ a target height, **but not both**.
 
-- For further usage, please read the comments in [tinify_test.go](./tinify_test.go)
+For further usage, please read the comments in [tinify_test.go](./tinify_test.go)
 
 ## Running tests
 
@@ -107,6 +107,8 @@ go test
 
 ## Command-line utility
 
+This is a work-in-progress example/demonstration of most of the functionality with a compact CLI, using <https://github.com/urfave/cli/v3> (and `zerolog` for pretty-printing error messages). It was mostly created by Gwyneth Llewelyn to have the ability to tinify *several* images larger than 5 MBytes, using a simple `bash` script and some shell globbing magic.
+
 To build it:
 
 ```shell
@@ -116,6 +118,13 @@ go build -ldflags "-X main.TheBuilder=$USER"
 ```
 
 and then invoke `./tinify-go --help` to get some basic instructions for the CLI.
+
+Remember that you need your `TINIFY_API_KEY`.
+
+To override the logging level, you can either use `--debug`, or even catch some initialisation errors if you set 
+`TINIFY_API_DEBUG` to, say, `trace`.
+
+Without arguments, `tinify-go` will read from standard input and write to standard output (with error messages going to standard error). This, however, is designed for automation — if `tinify-go` detects that it is attached to a console (TTY), it will refuse to read from standard input — you *must* supply a file (or an URL for a file) instead. This is deliberate, to avoid typing endless characters in an attempt to "do something", pressing <kbd>Ctrl-D</kbd> by mistake, and sending garbage to the Tinify API endpoint — wasting resources and *possibly* even consuming one of your tokens! 
 
 ## License
 
