@@ -94,7 +94,7 @@ Remember, to use it, you need a valid Tinify API Key, passed via the environment
 
 ## ⚠️ Notice:
 
-    `Tinify.ResizeMethod()` supports `scale`, `fit`, `cover` and `thumbnail`. If you use `fit`/`cover`/`thumbnail`, you **must** provide **both a width and a height**. But if you use `scale`, you **must** instead provide _either_ a target width _or_ a target height, **but not both**.
+`Tinify.ResizeMethod()` supports `scale`, `fit`, `cover` and `thumbnail`. If you use `fit`/`cover`/`thumbnail`, you **must** provide **both a width and a height**. But if you use `scale`, you **must** instead provide _either_ a target width _or_ a target height, **but not both**.
 
 For further usage, please read the comments in [tinify_test.go](./tinify_test.go)
 
