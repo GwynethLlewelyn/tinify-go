@@ -27,4 +27,6 @@ jobs:
     - name: Test
       env:
         TINIFY_API_KEY: ${{ secrets.TINIFY_API_KEY }}
-      run: go test -v ./...
+      run: |
+        mkdir -p testdata/output
+        go test -v ./...
