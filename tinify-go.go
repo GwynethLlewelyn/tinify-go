@@ -78,8 +78,16 @@ func main() {
 	// and merge with the existing environment.
 	setting.Key = os.Getenv("TINIFY_API_KEY")
 
-	// testing zerolog:
+	startLevel := zerolog.ErrorLevel
+	// Debug override (for testing purposes): check environmnt, change debug level if present.
+	if debugOverride := os.Getenv("TINIFY_API_DEBUG"); len(debugOverride) > 0 {
+		if startLevel, err = zerolog.ParseLevel(debugOverride); err != nil {
+			// when zerolog.ParseLevel() fails, it returns zerolog.NoLevel; we'll go back to default (zerolog.ErrorLevel).
+			startLevel = zerolog.ErrorLevel
+		}
+	}
 
+	// testing zerolog:
 	setting.Logger = zerolog.New(zerolog.ConsoleWriter{
 		Out:        os.Stderr,
 		TimeFormat: time.DateTime,
@@ -92,55 +100,21 @@ func main() {
 			return "(" + filepath.Base(fmt.Sprintf("%s", i)) + ")"
 		},
 	}).
-		Level(zerolog.TraceLevel).
+		Level(startLevel).
 		With().
 		Caller().
 		Logger()
 
-	//os.Exit(0)
-	/*
-		// Force debug mode!
-		setting.LoggingLevel = zerolog.LevelDebugValue
-
-		// Start zerolog setting.Logger.
-		// Set to a reasonable default (i.e., "error").
-		tinifyLoggingLevel, err := zerolog.ParseLevel(setting.LoggingLevel)
-		if err != nil {
-			tinifyLoggingLevel = zerolog.ErrorLevel
-			setting.LoggingLevel = tinifyLoggingLevel.String()
-		}
-		// We're using it for pretty-printing to the console.
-		setting.Logger = zerolog.New(zerolog.ConsoleWriter{
-			Out: os.Stderr, TimeFormat: time.DateTime,
-			PartsOrder: []string{
-				zerolog.TimestampFieldName,
-				zerolog.LevelFieldName,
-				zerolog.MessageFieldName,
-				zerolog.CallerFieldName,
-			},
-			FormatCaller: func(i any) string {
-				return filepath.Base(fmt.Sprintf("%s", i))
-			},
-		}).
-			Level(tinifyLoggingLevel). // typecast from int8 to zerolog.Level
-			With().
-			Timestamp().
-			Caller().
-			//		Int("pid", os.Getpid()).
-			//		Str("go_version", buildInfo.oVersion).
-			Logger()
-	*/
-
 	// while testing, temporarily override everything and put the loggr in trace mode.
-	tinifyLoggingLevel := zerolog.TraceLevel
-	setting.LoggingLevel = zerolog.LevelTraceValue
+	// tinifyLoggingLevel := zerolog.TraceLevel
+	// setting.LoggingLevel = zerolog.LevelTraceValue
 
 	// Note that the zerolog setting.Logger is *always* returned; if it cannot write to the log
 	// for some reason, that error will be handled by the zerolog passage, thus
 	// the simple `Debug()` call here: if this _fails_, we've not done anything yet with
 	// the images, and can safely abort.
-	setting.Logger.Debug().Msgf("setting.Logger started at error level %v; tinify pkg version %s",
-		tinifyLoggingLevel,
+	setting.Logger.Debug().Msgf("setting.Logger started at logging level %q; tinify pkg version %s",
+		setting.Logger.GetLevel(),
 		Tinify.VERSION)
 
 	// check for terminal width if we're on a TTY
@@ -204,13 +178,14 @@ func main() {
 			&cli.StringFlag{
 				Name:        "debug",
 				Aliases:     []string{"d"},
-				Usage:       "debug level; \"error\" means no debug",
+				Usage:       "debug level; \"error\" means no logging",
 				Value:       zerolog.LevelErrorValue,
 				Destination: &setting.LoggingLevel,
 				Action: func(ctx context.Context, c *cli.Command, s string) error {
 					// Check if the debug level is valid: it must be one of the zerolog valid types.
-					// NOTE: this will be set later on anyway...
-					setting.Logger.Debug().Msgf("cli.StringFlag(): setting debug level to... %q", setting.LoggingLevel)
+					// NOTE: This will be set later on anyway...
+					// NOTE: setting.LoggingLevel will *always* be set to the default value, no matter what.
+					setting.Logger.Debug().Msgf("cli.StringFlag(): setting logging level to... %q", setting.LoggingLevel)
 					return setLogLevel()
 				},
 			},
@@ -502,7 +477,7 @@ func callAPI(_ context.Context, cmd *cli.Command, source *Tinify.Source) error {
 		return err
 	}
 
-	setting.Logger.Debug().Msgf("callAPI: succesfully wrote to %q, compression count: %d", setting.OutputFileName, setting.CompressionCount)
+	setting.Logger.Info().Msgf("Succesfully wrote to %q, compression count: %d", setting.OutputFileName, setting.CompressionCount)
 	return nil
 }
 
@@ -618,8 +593,12 @@ func setLogLevel() error {
 	if len(setting.LoggingLevel) > 0 {
 		if tinifyLoggingLevel, err := zerolog.ParseLevel(setting.LoggingLevel); err == nil {
 			// Ok, valid error level selected, set it:
-			setting.Logger.Level(tinifyLoggingLevel)
+			setting.Logger = setting.Logger.Level(tinifyLoggingLevel)
 			setting.LoggingLevel = tinifyLoggingLevel.String()
+			setting.Logger.Debug().Msgf("setLogLevel(): successfully set logging level to %q (%d)",
+				setting.LoggingLevel,
+				setting.Logger.GetLevel(),
+			)
 			return nil
 		} else {
 			setting.Logger.Debug().Msgf("setLogLevel(): error parsing logging level %q: %s",
@@ -627,11 +606,13 @@ func setLogLevel() error {
 		}
 	}
 	// Unknown logging level, or empty logging level, so fall back to "error"
-	setting.Logger.Level(zerolog.ErrorLevel)
+	setting.Logger.Debug().Msgf("setLogLevel(): empty or unknown logging level %q, falling back to \"error\"",
+		setting.LoggingLevel)
+	setting.Logger = setting.Logger.Level(zerolog.ErrorLevel)
 	setting.LoggingLevel = zerolog.ErrorLevel.String()
 
-	return fmt.Errorf("unknown logging type %q, setting to \"error\" by default",
-		setting.LoggingLevel)
+	return fmt.Errorf("unknown logging type %q, setting to \"error\" (%d) by default",
+		setting.LoggingLevel, setting.Logger.GetLevel())
 }
 
 // check if this is a valid Hex value for a colour or not.
