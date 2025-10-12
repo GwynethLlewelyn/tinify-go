@@ -196,7 +196,7 @@ func main() {
 				Aliases: []string{"v"},
 				Usage:   "show version and compilation data",
 				Action: func(ctx context.Context, c *cli.Command) error {
-					fmt.Println(versionInfo)
+					fmt.Printf("VERSION:\n%s\n", versionInfo)
 					return nil
 				},
 			},
