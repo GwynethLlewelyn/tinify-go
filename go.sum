@@ -1,7 +1,7 @@
-github.com/GwynethLlewelyn/justify v0.0.0-20250825110346-f8b86cdd4acb h1:SG5qyEUfm8NWYKnvFPXL/pfHoT/Vhs4QIGn2P9rOw8c=
-github.com/GwynethLlewelyn/justify v0.0.0-20250825110346-f8b86cdd4acb/go.mod h1:xq8EIgM9FLqbQ5jZG8ZayzPFGQhmj96ZtMxbauIpJFU=
 github.com/GwynethLlewelyn/justify v0.0.0-20251007205432-f93fb52b3215 h1:EmmGZawmq+0066/cgZgBsqgLQZjEPSR5lXpyisYQUB0=
 github.com/GwynethLlewelyn/justify v0.0.0-20251007205432-f93fb52b3215/go.mod h1:xq8EIgM9FLqbQ5jZG8ZayzPFGQhmj96ZtMxbauIpJFU=
+github.com/GwynethLlewelyn/justify v0.2.1 h1:LPVoHHuoxQAbOyluWJU0YoO9Nd3wyXsu29jtMy7M2dI=
+github.com/GwynethLlewelyn/justify v0.2.1/go.mod h1:+J67K0OEEfiAYoBpphiy3Pzlr+hsTZPV7LsSQtbLXA4=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -28,12 +28,8 @@ github.com/urfave/cli/v3 v3.4.1/go.mod h1:FJSKtM/9AiiTOJL4fJ6TbMUkxBXn7GO9guZqoZ
 golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.12.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.36.0 h1:KVRy2GtZBrk1cBYA7MKu5bEZFxQk4NIDV6RLVcC8o0k=
-golang.org/x/sys v0.36.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
 golang.org/x/sys v0.37.0 h1:fdNQudmxPjkdUTPnLn5mdQv7Zwvbvpaxqs831goi9kQ=
 golang.org/x/sys v0.37.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
-golang.org/x/term v0.35.0 h1:bZBVKBudEyhRcajGcNc3jIfWPqV4y/Kt2XcoigOWtDQ=
-golang.org/x/term v0.35.0/go.mod h1:TPGtkTLesOwf2DE8CgVYiZinHAOuy5AYUYT1lENIZnA=
 golang.org/x/term v0.36.0 h1:zMPR+aF8gfksFprF/Nc/rd1wRS1EI6nDBGyWAvDzx2Q=
 golang.org/x/term v0.36.0/go.mod h1:Qu394IJq6V6dCBRgwqshf3mPF85AqzYEzofzRdZkWss=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=

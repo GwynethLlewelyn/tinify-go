@@ -3,7 +3,7 @@ module github.com/gwpp/tinify-go
 go 1.24.6
 
 require (
-	github.com/GwynethLlewelyn/justify v0.0.0-20251007205432-f93fb52b3215
+	github.com/GwynethLlewelyn/justify v0.2.1
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/zerolog v1.34.0
 	github.com/urfave/cli/v3 v3.4.1
