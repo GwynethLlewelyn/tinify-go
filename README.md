@@ -35,62 +35,62 @@ Remember, to use it, you need a valid Tinify API Key, passed via the environment
 
 ### About the TinyPNG API key
 
-    Get your API key from https://tinypng.com/developers
+Get your API key from <https://tinypng.com/developers>.
 
 ### Compress
 
-    ```golang
-    func TestCompressFromFile(t *testing.T) {
-        Tinify.SetKey(Key)
-        source, err := Tinify.FromFile("./testdata/input/test.jpg")
-        if err != nil {
-            t.Error(err)
-            return
-        }
-
-        err = source.ToFile("./testdata/output/CompressFromFile.jpg")
-        if err != nil {
-            t.Error(err)
-            return
-        }
-        t.Log("Compress successful")
+```golang
+func TestCompressFromFile(t *testing.T) {
+    Tinify.SetKey(Key)
+    source, err := Tinify.FromFile("./testdata/input/test.jpg")
+    if err != nil {
+        t.Error(err)
+        return
     }
-    ```
+
+    err = source.ToFile("./testdata/output/CompressFromFile.jpg")
+    if err != nil {
+        t.Error(err)
+        return
+    }
+    t.Log("Compress successful")
+}
+```
 
 ### Resize
 
-    ```golang
-    func TestResizeFromBuffer(t *testing.T) {
-        Tinify.SetKey(Key)
+```golang
+func TestResizeFromBuffer(t *testing.T) {
+    Tinify.SetKey(Key)
 
-        buf, err := ioutil.ReadFile("./testdata/input/test.jpg")
-        if err != nil {
-            t.Error(err)
-            return
-        }
-        source, err := Tinify.FromBuffer(buf)
-        if err != nil {
-            t.Error(err)
-            return
-        }
-
-        err = source.Resize(&Tinify.ResizeOption{
-            Method: Tinify.ResizeMethodScale,
-            Width:  200,
-        })
-        if err != nil {
-            t.Error(err)
-            return
-        }
-
-        err = source.ToFile("./testdata/output/ResizesFromBuffer.jpg")
-        if err != nil {
-            t.Error(err)
-            return
-        }
-        t.Log("Resize successful")
+    buf, err := ioutil.ReadFile("./testdata/input/test.jpg")
+    if err != nil {
+        t.Error(err)
+        return
     }
-    ```
+    source, err := Tinify.FromBuffer(buf)
+    if err != nil {
+        t.Error(err)
+        return
+    }
+
+    err = source.Resize(&Tinify.ResizeOption{
+        Method: Tinify.ResizeMethodScale,
+        Width:  200,
+    })
+    if err != nil {
+        t.Error(err)
+        return
+    }
+
+    err = source.ToFile("./testdata/output/ResizesFromBuffer.jpg")
+    if err != nil {
+        t.Error(err)
+        return
+    }
+    t.Log("Resize successful")
+}
+```
 
 ## ⚠️ Notice:
 
