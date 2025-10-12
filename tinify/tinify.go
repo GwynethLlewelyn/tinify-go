@@ -8,7 +8,7 @@ import (
 	"errors"
 )
 
-const VERSION = "v0.2.0" // using semantic versioning; 1.0 is considered "stable"...
+const VERSION = "v0.2.1" // using semantic versioning; 1.0 is considered "stable"...
 
 var (
 	key    string  // Tinify API Key, as obtained through https://tinypng.com/developers.
@@ -34,9 +34,9 @@ func GetClient() *Client {
 	}
 
 	if client == nil {
-		c, err := NewClient(key)
+		c, err := NewClient(key) // no errors returned as of 20251012
 		if err != nil {
-			panic(errors.New("provide an API key with Tinify.SetKey(key string)"))
+			panic(err)
 		}
 		client = c
 	}
