@@ -6,7 +6,7 @@
 [![Go](https://github.com/GwynethLlewelyn/tinify-go/actions/workflows/go.yml/badge.svg)](https://github.com/GwynethLlewelyn/tinify-go/actions/workflows/go.yml)
 ---
 
-Golang client for the [Tinify API](https://tinypng.com/developers/reference), used for [TinyPNG](https://tinypng.com) and [TinyJPG](https://tinyjpg.com). Tinify compresses or resizes your images intelligently. Read more at [http://tinify.com](http://tinify.com).
+Golang client for the [Tinify API](https://tinypng.com/developers/reference), used for [TinyPNG](https://tinypng.com) and [TinyJPG](https://tinyjpg.com). Tinify compresses or resizes your images intelligently. Read more at <https://tinify.com>.
 
 The code on this repository is the work of volunteers who are neither affiliated with, nor endorsed by Tinify B.V., the makers of the Tinify API and of TinyPNG.
 
