@@ -144,7 +144,7 @@ func main() {
 
 	// start CLI app
 	cmd := &cli.Command{
-		Name: "tinify-go",
+		Name: os.Args[0],
 		Usage: justify.Justify("Calls the Tinify API from TinyPNG "+func() string {
 			if len(setting.Key) < 5 {
 				return "(environment variable TINIFY_API_KEY not set or invalid key)"
@@ -491,7 +491,7 @@ func convert(ctx context.Context, cmd *cli.Command) error {
 	setting.Logger.Debug().Msg("convert called")
 
 	if ctx, source, err = openStream(ctx); err != nil {
-		setting.Logger.Error().Msgf("convert: invalid filenames, error was %v", err)
+		setting.Logger.Error().Msgf("convert: invalid filenames, error was %q", err)
 		return err
 	}
 
