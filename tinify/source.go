@@ -94,10 +94,10 @@ func FromUrl(url string) (s *Source, err error) {
 func getSourceFromResponse(response *http.Response) (s *Source, err error) {
 	location := response.Header["Location"]
 	url := ""
-	if len(location) > 0 && response.StatusCode != http.StatusBadRequest {
+	if len(location) > 0 && response.StatusCode < http.StatusBadRequest {
 		url = location[0]
 	} else {
-		return nil, fmt.Errorf("empty location and/or status error %d", response.StatusCode)
+		return nil, fmt.Errorf("empty location %q and/or status error %d", location[0], response.StatusCode)
 	}
 
 	s = newSource(url, nil)
