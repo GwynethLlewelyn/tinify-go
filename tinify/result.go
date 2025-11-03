@@ -37,7 +37,8 @@ func (r *Result) ToFile(path string) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(path, r.data, os.ModePerm)
+	// Fix: by default, it was writing with permissions 0777
+	err = os.WriteFile(path, r.data, os.FileMode(int(0644)))
 	return err
 }
 
