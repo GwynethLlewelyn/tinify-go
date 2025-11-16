@@ -23,7 +23,7 @@ import (
 	"golang.org/x/term"
 )
 
-// No harm is done having just one context, which is simoly the background.
+// No harm is done having just one context, which is simply the background.
 var ctx = context.Background()
 
 // Type to hold the global variables for all possible calls.
@@ -144,14 +144,14 @@ func main() {
 
 	// start CLI app
 	cmd := &cli.Command{
-		Name: os.Args[0],
+		Name: filepath.Base(os.Args[0]),
 		Usage: justify.Justify("Calls the Tinify API from TinyPNG "+func() string {
 			if len(setting.Key) < 5 {
 				return "(environment variable TINIFY_API_KEY not set or invalid key)"
 			}
 			return "(with key [..." + setting.Key[len(setting.Key)-4:] + "])"
 		}(), setting.TerminalWidth),
-		UsageText:             justify.Justify(os.Args[0]+" [OPTION] [FLAGS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.", setting.TerminalWidth),
+		UsageText:             justify.Justify(os.Args[0]+" [COMMAND] [OPTIONS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.", setting.TerminalWidth),
 		Version:               fmt.Sprint(versionInfo),
 		DefaultCommand:        "compress",
 		EnableShellCompletion: true,
@@ -161,7 +161,7 @@ func main() {
 			&mail.Address{Name: "gwpp", Address: "ganwenpeng1993@163.com"},
 			&mail.Address{Name: "Gwyneth Llewelyn", Address: "gwyneth.llewelyn@gwynethllewelyn.net"},
 		},
-		Copyright: justify.Justify(fmt.Sprintf("© 2017-%d by Ganwen Peng. All rights reserved. Freely distributed under an MIT license.", time.Now().Year()), setting.TerminalWidth),
+		Copyright: justify.Justify(fmt.Sprintf("© 2017-%d by Ganwen Peng. All rights reserved. Freely distributed under an MIT license.\nThe authors are neither affiliated nor endorsed by Tinify B.V.", time.Now().Year()), setting.TerminalWidth),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "input",
@@ -191,15 +191,6 @@ func main() {
 			},
 		},
 		Commands: []*cli.Command{
-			{
-				Name:    "version",
-				Aliases: []string{"v"},
-				Usage:   "show version and compilation data",
-				Action: func(ctx context.Context, c *cli.Command) error {
-					fmt.Printf("VERSION:\n%s\n", versionInfo)
-					return nil
-				},
-			},
 			{
 				Name:      "compress",
 				Aliases:   []string{"comp"},
@@ -315,6 +306,15 @@ func main() {
 							return nil
 						},
 					},
+				},
+			},
+			{
+				Name:    "version",
+				Aliases: []string{"v"},
+				Usage:   "show version and compilation data",
+				Action: func(ctx context.Context, c *cli.Command) error {
+					fmt.Printf("VERSION:\n%s\n", versionInfo)
+					return nil
 				},
 			},
 		},
