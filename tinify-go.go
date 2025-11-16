@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/mail"
 	"os"
 	"path/filepath"
@@ -32,7 +33,7 @@ type Setting struct {
 	ImageName        string         `json:"image_name"`        // Filename or URL.
 	OutputFileName   string         `json:"output_file_name"`  // If set, it's the output filename; if not, well...
 	FileType         string         `json:"file_type"`         // Any set of webp, png, jpg, avif.
-	Key              string         `json:"key"`               // TinyPNG API key; can be on environment or read from .env.
+	Key              string         `json:"key"`               // TinyPNG API key; can be on environment or read from `.env`.
 	Logger           zerolog.Logger `json:"-"`                 // The main setting.Logger.
 	Method           string         `json:"method"`            // Resizing method (scale, fit, cover, thumb).
 	Width            int64          `json:"width"`             // Image width  (for resize operations).
@@ -63,6 +64,14 @@ var methods = []string{
 	Tinify.ResizeMethodThumb,
 }
 
+/*
+				(_)
+ _ __ ___   __ _ _ _ __
+| '_ ` _ \ / _` | | '_ \
+| | | | | | (_| | | | | |
+|_| |_| |_|\__,_|_|_| |_|
+
+*/
 // Main starts here.
 func main() {
 	var err error // declared here due to scoping issues.
@@ -142,6 +151,22 @@ func main() {
 		"Go version":   versionInfo.goVersion,
 	}
 
+	// These are the special arguments for input and output. They're here to avoid constant repetition.
+	var inputOutputFilenames = []cli.Argument{
+		&cli.StringArg{
+			Name:        "input file",
+			UsageText:   "input `filename` (use '-' for STDIN)",
+			Destination: &setting.ImageName,
+		},
+		&cli.StringArg{
+			Name:        "output file",
+			UsageText:   "output `filename` (use - for STDOUT)",
+			Destination: &setting.OutputFileName,
+		},
+	}
+
+	// these are flags
+
 	// start CLI app
 	cmd := &cli.Command{
 		Name: filepath.Base(os.Args[0]),
@@ -162,23 +187,24 @@ func main() {
 			&mail.Address{Name: "Gwyneth Llewelyn", Address: "gwyneth.llewelyn@gwynethllewelyn.net"},
 		},
 		Copyright: justify.Justify(fmt.Sprintf("© 2017-%d by Ganwen Peng. All rights reserved. Freely distributed under an MIT license.\nThe authors are neither affiliated nor endorsed by Tinify B.V.", time.Now().Year()), setting.TerminalWidth),
+		Arguments: inputOutputFilenames,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "input",
 				Aliases:     []string{"i"},
-				Usage:       "input filename (empty=STDIN)",
+				Usage:       "input `filename` (empty or '-' for STDIN)",
 				Destination: &setting.ImageName,
 			},
 			&cli.StringFlag{
 				Name:        "output",
 				Aliases:     []string{"o"},
-				Usage:       "output filename (empty=STDOUT)",
+				Usage:       "output `filename` (empty or '-' for STDOUT)",
 				Destination: &setting.OutputFileName,
 			},
 			&cli.StringFlag{
 				Name:        "debug",
 				Aliases:     []string{"d"},
-				Usage:       "debug level; \"error\" means no logging",
+				Usage:       "debug `level`; \"error\" means no logging",
 				Value:       zerolog.LevelErrorValue,
 				Destination: &setting.LoggingLevel,
 				Action: func(ctx context.Context, c *cli.Command, s string) error {
@@ -197,6 +223,7 @@ func main() {
 				Usage:     "compresses and optimises an image",
 				UsageText: justify.Justify("You can upload any image to the Tinify API to compress it. We will automatically detect the type of image ("+strings.Join(types, ", ")+") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.", setting.TerminalWidth),
 				Action:    compress,
+				Arguments: inputOutputFilenames,
 			},
 			{
 				Name:      "resize",
@@ -204,6 +231,7 @@ func main() {
 				Usage:     "resizes the image to a new size, using one of the possible methods",
 				UsageText: justify.Justify("Use the API to create resized versions of your uploaded images.\nBy letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.\nAvailable compression methods are: "+strings.Join(methods, ", "), setting.TerminalWidth),
 				Action:    resize,
+				Arguments: inputOutputFilenames,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "method",
@@ -218,7 +246,6 @@ func main() {
 								setting.Method = Tinify.ResizeMethodScale // scale is default
 							} else if !slices.Contains(methods, setting.Method) {
 								// Checked if it's one of the valid methods; if not, abort.
-								setting.Logger.Fatal().Msgf("invalid resize method: %q", setting.Method)
 								return fmt.Errorf("invalid resize method: %q", setting.Method)
 							}
 							return nil
@@ -228,14 +255,14 @@ func main() {
 						Name:        "width",
 						Aliases:     []string{"w"},
 						Value:       0,
-						Usage:       "destination image width",
+						Usage:       "destination image `width`",
 						Destination: &setting.Width,
 					},
 					&cli.Int64Flag{
 						Name:        "height",
 						Aliases:     []string{"g"},
 						Value:       0,
-						Usage:       "destination image height",
+						Usage:       "destination image `height`",
 						Destination: &setting.Height,
 					},
 				},
@@ -246,13 +273,13 @@ func main() {
 				Usage:     "converts from one file type to another (" + strings.Join(types, ", ") + " supported)",
 				UsageText: justify.Justify("You can use the API to convert your images to your desired image type.\nTinify currently supports converting between: "+strings.Join(types, ", ")+".\nWhen you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.", setting.TerminalWidth),
 				Action:    convert,
+				Arguments: inputOutputFilenames,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "type",
 						Aliases:     []string{"t"},
 						Usage:       "file type [" + strings.Join(types, ", ") + "]",
 						Value:       "webp",
-						DefaultText: "webp",
 						Destination: &setting.FileType,
 						Action: func(ctx context.Context, c *cli.Command, s string) error {
 							// Check if the type(s) are all valid:
@@ -272,7 +299,7 @@ func main() {
 								// if we're here, all file types are valid
 								setting.Logger.Debug().Msg("convert: all file type parameters are valid")
 							} else {
-								setting.Logger.Debug().Msg("convert: no file type parameters found")
+								setting.Logger.Debug().Msg("convert: no file type parameters found, trying to guess")
 							}
 							return nil
 						},
@@ -285,12 +312,13 @@ func main() {
 				Usage:     "processes image further (currently only replaces the background with a solid colour)",
 				UsageText: justify.Justify("If you wish to convert an image with a transparent background to one with a solid background, specify a background property in the transform object.\nIf this property is provided, the background of a transparent image will be filled (only \"white\", \"black\", or a hex value are allowed).", setting.TerminalWidth),
 				Action:    transform,
+				Arguments: inputOutputFilenames,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "background",
 						Aliases:     []string{"bg"},
 						Value:       "",
-						Usage:       "only \"white\", \"black\", or a hex value are allowed",
+						Usage:       "only \"white\", \"black\", or a hex `value` are allowed",
 						Destination: &setting.Transform,
 						Action: func(ctx context.Context, c *cli.Command, s string) error {
 							// Check if value passed is correct.
@@ -301,7 +329,7 @@ func main() {
 							// Just check if the rmaining string is a valid hex string.
 							// (gwyneth 20250713)
 							if !isValidHex(setting.Transform) {
-								return fmt.Errorf("background colour: invalid hex value")
+								return fmt.Errorf("background colour: invalid hex value %q", setting.Transform)
 							}
 							return nil
 						},
@@ -331,8 +359,7 @@ func main() {
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			// Setup phase
-
-			setting.Logger.Debug().Msgf("Before action inside loop: before calling setLogLevel(), logging level was: %q(%d)",
+			setting.Logger.Debug().Msgf("`Before` action inside loop: before calling setLogLevel(), logging level was: %q(%d)",
 				setting.LoggingLevel,
 				setting.Logger.GetLevel())
 
@@ -340,7 +367,7 @@ func main() {
 			// NOTE: we can safely ignore the error here.
 			setLogLevel()
 
-			setting.Logger.Debug().Msgf("Before action inside loop: after calling setLogLevel(), log level is now set to: %q(%d)",
+			setting.Logger.Debug().Msgf("`Before` action inside loop: after calling setLogLevel(), log level is now set to: %q(%d)",
 				setting.LoggingLevel,
 				setting.Logger.GetLevel())
 
@@ -351,7 +378,7 @@ func main() {
 
 			// Now safely set the API key
 			Tinify.SetKey(setting.Key)
-			setting.Logger.Debug().Msgf("Before action inside loop: a Tinify API key was found: [...%s]", setting.Key[len(setting.Key)-4:])
+			setting.Logger.Debug().Msgf("`Before` action inside loop: a Tinify API key was found: [...%s]", setting.Key[len(setting.Key)-4:])
 
 			return ctx, nil
 		},
@@ -362,8 +389,6 @@ func main() {
 			return nil
 		},
 	}
-
-	//	cli.CommandHelpTemplate = commandHelpTemplate
 
 	setting.Logger.Debug().Msgf("Log level before outside loop: %q(%d)",
 		setting.LoggingLevel,
@@ -391,12 +416,48 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 		source   *Tinify.Source
 	)
 
+	// Tweak command-line to deal with files as parameters without --input etc.
+
+	// Now check for the special "-" which also denotes STDIN:
+	if setting.ImageName == "-" {
+		setting.ImageName = ""
+		setting.Logger.Trace().Msg("openStream: input file was \"-\", setting to STDIN")
+	}
+	// At this stage, the ImageName can be an URL, which we cannot check; it's the
+	// Tinify API that will deal with checking if it's valid or not.
+	if strings.Contains(setting.ImageName, "://") {
+		setting.Logger.Trace().Msgf("openStream: input file %q is an URL, can't check", setting.ImageName)
+	} else {
+		// Last chance: does this file exist on the local filesystem?
+		if _, err := os.Stat(setting.ImageName); err != nil {
+			setting.Logger.Error().Msgf("openStream: input file %q not found; reverting to STDIN", setting.ImageName)
+			setting.ImageName = ""
+		}
+	}
+	// At this point, the input is either a valid filename, an (unknown) URL, or STDIN.
+	setting.Logger.Trace().Msgf("openStream: input file is %q", setting.ImageName)
+
+	// Now do the same for the output filename, if it exists.
+	// The code is similar to the above.
+	// Check for the special "-" which in this case denotes STDOUT:
+	if setting.OutputFileName == "-" {
+		setting.OutputFileName = ""
+		setting.Logger.Trace().Msg("openStream: output file was \"-\", setting to STDOUT")
+	}
+	// At this stage, either we write to STDOUT or to a file (which we don't know if we can do so or not).
+	// We can check if the directory, at least, has write permissions, and fail otherwise, to avoid wasting
+	// one token call in case of a mistake:
+	if setting.OutputFileName != "" {
+		writeDir := filepath.Dir(setting.OutputFileName)
+		if b, dErr := isDirWritable(writeDir); !b {
+			return ctx, nil, fmt.Errorf("cannot save to %q, error was: %q", setting.OutputFileName, dErr)
+		}
+	}
+	// And npw we have already dealt with parsing potential arguments.
+	// So, either setting.ImageName is a valid filename, or an URL, or empty (= STDIN).
 	setting.Logger.Debug().Msgf("openStream: opening input file for reading: %q", setting.ImageName)
 	if setting.ImageName == "" || !strings.Contains(setting.ImageName, "://") {
 		if setting.ImageName == "" {
-			// empty filename; use stdin
-			f = os.Stdin
-
 			// are we on a TTY, or getting content from a pipe?
 			if term.IsTerminal(int(f.Fd())) {
 				return ctx, nil, fmt.Errorf("openStream: cannot read interactively from a TTY; use --input or pipe a file to STDIN")
@@ -481,14 +542,29 @@ func callAPI(_ context.Context, cmd *cli.Command, source *Tinify.Source) error {
 	return nil
 }
 
-// Tries to get a list of types to covert to, and calls the API.
+// Tries to get a list of types to convert to, and calls the API.
 func convert(ctx context.Context, cmd *cli.Command) error {
 	var (
 		err    error // declared here due to scope issues.
 		source *Tinify.Source
 	)
 
-	setting.Logger.Debug().Msg("convert called")
+	setting.Logger.Debug().Msgf("convert called, conversion type request was %q", setting.FileType)
+
+	// If setting.FileType is empty, do a complex lookup to figure out what we ought to convert it to.
+	// If all else fails, use WebP as the default (e.g., when stdout is selected, as there is no way to guess).
+	if setting.FileType == "" {
+		// check extension
+		if setting.OutputFileName != "" {
+			extension := filepath.Ext(setting.OutputFileName)
+			if extension != "" {
+				// check if it's one that the Tinify API recogniss as valid:
+
+			}
+		}
+		setting.FileType = "webp"
+		setting.Logger.Debug().Msg("convert: file type not set, using webp as default")
+	}
 
 	if ctx, source, err = openStream(ctx); err != nil {
 		setting.Logger.Error().Msgf("convert: invalid filenames, error was %q", err)
@@ -543,17 +619,27 @@ func resize(ctx context.Context, cmd *cli.Command) error {
 	return callAPI(ctx, cmd, source)
 }
 
-// Compress is the default.
+// Compress is the default. It handles the special case when argument 0 (the command)
+// has been omitted.
 func compress(ctx context.Context, cmd *cli.Command) error {
 	var (
 		err    error // declared here due to scope issues.
 		source *Tinify.Source
 	)
+	// Was this called as the default (i.e. empty) command? If so, adjust for 1 or 2 arguments.
+	if len(os.Args) > 1 && os.Args[1] != "compress" && fs.ValidPath(os.Args[1]) {
+		setting.Logger.Trace().Msgf("compress called by default, command was omitted; extracting filename(s) directly from arguments: %#v", os.Args)
+		setting.ImageName = os.Args[1]
+		if len(os.Args) > 2 && fs.ValidPath(os.Args[2]) {
+			setting.OutputFileName = os.Args[2]
+		}
+	}
 
-	setting.Logger.Debug().Msg("compress called")
+	setting.Logger.Debug().Msgf("compress called for %q -> %q", setting.ImageName, setting.OutputFileName)
 
 	if ctx, source, err = openStream(ctx); err != nil {
-		setting.Logger.Error().Msgf("compress: invalid filenames, error was: %v", err)
+		setting.Logger.Fatal().Msgf("compress: invalid filenames, error was: %v", err)
+		// probably never reached:
 		return err
 	}
 
@@ -648,4 +734,20 @@ func isValidHex(s string) bool {
 		return false
 	}
 	return true
+}
+
+// A stupid way (which works) to check if a directory is writable by this user or not.
+// The advantage is that it works universally on all operating systems.
+func isDirWritable(path string) (bool, error) {
+	tmpFile := "tmpfile"
+
+	file, err := os.CreateTemp(path, tmpFile)
+	if err != nil {
+		return false, err
+	}
+
+	defer os.Remove(file.Name())
+	defer file.Close()
+
+	return true, nil
 }
