@@ -131,3 +131,5 @@ Without arguments, `tinify-go` will read from standard input and write to standa
 This software is licensed under the [MIT License](LICENSE).
 
 The logo (a cross-breed between the gopher mascot and the TinyPNG panda!) was provided courtesy of Microsoft's image generative AI, which is currently based on OpenAI's DALL-E technology.
+
+[![tinify-go build with Debian packages](https://github.com/GwynethLlewelyn/tinify-go/actions/workflows/go.yml/badge.svg)](https://github.com/GwynethLlewelyn/tinify-go/actions/workflows/go.yml) [![Codacy Security Scan](https://github.com/GwynethLlewelyn/tinify-go/actions/workflows/codacy.yml/badge.svg)](https://github.com/GwynethLlewelyn/tinify-go/actions/workflows/codacy.yml) [![Go Report Card](https://goreportcard.com/badge/github.com/GwynethLlewelyn/tinify-go)](https://goreportcard.com/report/github.com/GwynethLlewelyn/tinify-go) [![CodeQL](https://github.com/GwynethLlewelyn/tinify-go/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/GwynethLlewelyn/tinify-go/actions/workflows/codeql-analysis.yml)

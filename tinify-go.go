@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"net/mail"
 	"os"
 	"path/filepath"
@@ -453,7 +454,10 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 			return ctx, nil, fmt.Errorf("cannot save to %q, error was: %q", setting.OutputFileName, dErr)
 		}
 	}
-	// And npw we have already dealt with parsing potential arguments.
+	// At this point, the output is either a valid filename or STDOUT. (see above)
+	setting.Logger.Trace().Msgf("openStream: output file is %q", setting.OutputFileName)
+
+	// And now we have already dealt with parsing potential arguments.
 	// So, either setting.ImageName is a valid filename, or an URL, or empty (= STDIN).
 	setting.Logger.Debug().Msgf("openStream: opening input file for reading: %q", setting.ImageName)
 	if setting.ImageName == "" || !strings.Contains(setting.ImageName, "://") {
@@ -464,7 +468,7 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 			}
 
 			// Logging to console, so let the user knows that as well
-			setting.Logger.Info().Msg("openStream: empty filename; reading from console/stdin instead")
+			setting.Logger.Info().Msg("openStream: empty input filename; reading from console/stdin instead")
 		} else {
 			// check to see if we can open this file:
 			f, err = os.Open(setting.ImageName)
@@ -478,8 +482,17 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 		if err != nil {
 			return ctx, nil, err
 		}
+		// check canonical mime type:
+		mimeType := http.DetectContentType(rawImage)
+		// Valid Media Types according to IANA (se https://www.iana.org/assignments/media-types/media-types.xhtml#image)
+		switch mimeType {
+		case "image/png", "image/apng", "image/vnd.mozilla.apng", "image/vnd.sealed.png", "image/jpeg", "image/webp", "image/avif":
+			setting.Logger.Trace().Msgf("openStream: setting Media Type to (valid) %q", mimeType)
+		default:
+			return ctx, nil, fmt.Errorf("openStream: invalid or not recognised Media Type %q, aborting", mimeType)
+		}
 
-		setting.Logger.Debug().Msgf("openStream: arg: %q (empty means stdin), size %d", setting.ImageName, len(rawImage))
+		setting.Logger.Debug().Msgf("openStream: arg: %q (empty means stdin), size %d, Media Type %q", setting.ImageName, len(rawImage), mimeType)
 
 		// Now call the TinyPNG API
 		source, err = Tinify.FromBuffer(rawImage)
@@ -556,14 +569,21 @@ func convert(ctx context.Context, cmd *cli.Command) error {
 	if setting.FileType == "" {
 		// check extension
 		if setting.OutputFileName != "" {
-			extension := filepath.Ext(setting.OutputFileName)
-			if extension != "" {
-				// check if it's one that the Tinify API recogniss as valid:
-
+			extension := strings.ToLower(filepath.Ext(setting.OutputFileName))
+			if len(extension) > 1 { // skip dot before extension!
+				// check if it's one that the Tinify API recognises as valid:
+				if !slices.Contains(types, extension[1:]) {
+					setting.FileType = extension[1:]
+					setting.Logger.Trace().Msgf("convert: conversion type request was empty, now set to valid file extension %q", setting.FileType)
+				}
 			}
 		}
+	}
+	// this could be written differently, avoiding the comparison, but this code
+	// is cleaner: if we didn't manage to set it earlier, we set it now to the default, webp:
+	if setting.FileType == "" {
 		setting.FileType = "webp"
-		setting.Logger.Debug().Msg("convert: file type not set, using webp as default")
+		setting.Logger.Trace().Msg("convert: conversion type request was not set, using \"webp\" as default")
 	}
 
 	if ctx, source, err = openStream(ctx); err != nil {
