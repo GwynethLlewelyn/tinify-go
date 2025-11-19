@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/fs"
+	//	"io/fs"
 	"net/http"
 	"net/mail"
 	"os"
@@ -258,6 +258,12 @@ func main() {
 						Value:       0,
 						Usage:       "destination image `width`",
 						Destination: &setting.Width,
+						Action: func(ctx context.Context, c *cli.Command, i int64) error {
+							if i < 1 {
+								return fmt.Errorf("width must be at least 1, %d provided", i)
+							}
+							return nil
+						},
 					},
 					&cli.Int64Flag{
 						Name:        "height",
@@ -265,6 +271,12 @@ func main() {
 						Value:       0,
 						Usage:       "destination image `height`",
 						Destination: &setting.Height,
+						Action: func(ctx context.Context, c *cli.Command, i int64) error {
+							if i < 1 {
+								return fmt.Errorf("height must be at least 1, %d provided", i)
+							}
+							return nil
+						},
 					},
 				},
 			},
@@ -348,14 +360,15 @@ func main() {
 			},
 		},
 		CommandNotFound: func(ctx context.Context, cmd *cli.Command, command string) {
-			setting.Logger.Fatal().Msgf("Command %q not found.\nUsage: %s", command, cmd.UsageText)
+			// because 'compress' is used by default, this should never be called
+			cli.Exit(fmt.Sprintf("Command %q not found.\nUsage: %s", command, cmd.UsageText), 22)
 		},
 		OnUsageError: func(ctx context.Context, cmd *cli.Command, err error, isSubcommand bool) error {
 			if isSubcommand {
 				return err
 			}
 
-			setting.Logger.Error().Msgf("Wrong usage: %#v", err)
+			setting.Logger.Error().Msgf("wrong usage: %#v", err)
 			return nil
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
@@ -385,9 +398,7 @@ func main() {
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// Everything not defined above happens here!
-
-			setting.Logger.Debug().Msg("Reached empty Action block")
-			return nil
+			return cli.Exit(fmt.Sprintf("command %q not implemented", cmd.Name), 22)
 		},
 	}
 
@@ -397,7 +408,6 @@ func main() {
 	)
 
 	if err := cmd.Run(ctx, os.Args); err != nil {
-		// setting.Logger.Fatal().Err(err)
 		setting.Logger.Fatal().Msg(err.Error())
 	}
 } // main
@@ -647,20 +657,18 @@ func compress(ctx context.Context, cmd *cli.Command) error {
 		source *Tinify.Source
 	)
 	// Was this called as the default (i.e. empty) command? If so, adjust for 1 or 2 arguments.
-	if len(os.Args) > 1 && os.Args[1] != "compress" && fs.ValidPath(os.Args[1]) {
-		setting.Logger.Trace().Msgf("compress called by default, command was omitted; extracting filename(s) directly from arguments: %#v", os.Args)
-		setting.ImageName = os.Args[1]
-		if len(os.Args) > 2 && fs.ValidPath(os.Args[2]) {
-			setting.OutputFileName = os.Args[2]
+	/*	if cmd.Args().Len() > 1 && os.Args[1] != "compress" && fs.ValidPath(os.Args[1]) {
+			setting.Logger.Trace().Msgf("compress called by default, command was omitted; extracting filename(s) directly from arguments: %#v", os.Args)
+			setting.ImageName = os.Args[1]
+			if len(os.Args) > 2 && fs.ValidPath(os.Args[2]) {
+				setting.OutputFileName = os.Args[2]
+			}
 		}
-	}
-
+	*/
 	setting.Logger.Debug().Msgf("compress called for %q -> %q", setting.ImageName, setting.OutputFileName)
 
 	if ctx, source, err = openStream(ctx); err != nil {
-		setting.Logger.Fatal().Msgf("compress: invalid filenames, error was: %v", err)
-		// probably never reached:
-		return err
+		return cli.Exit(fmt.Sprintf("compress: invalid filenames, error was: %v", err), 2)
 	}
 
 	return callAPI(ctx, cmd, source)
