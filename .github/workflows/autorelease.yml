@@ -2,11 +2,11 @@ name: goreleaser
 
 on:
   pull_request:
-  workflow_dispatch:
   push:
     # run against tags
     tags:
       - "*"
+  workflow_dispatch:
 
 #  on:
 #    push:
@@ -23,11 +23,11 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
 
-    metadata:
+ #   metadata:
       # Set the modified timestamp on the metadata files.
       #
       # Templates: allowed.
-      mod_timestamp: "{{ .CommitTimestamp }}"
+#      mod_timestamp: "{{ .CommitTimestamp }}"
 
     steps:
       - name: Checkout
