@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	//	"io/fs"
+	"io/fs"
 	"net/http"
 	"net/mail"
 	"os"
@@ -19,6 +19,7 @@ import (
 
 	"github.com/GwynethLlewelyn/justify"
 	Tinify "github.com/gwpp/tinify-go/tinify"
+	"github.com/hbollon/go-edlib"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/rs/zerolog"
 	"github.com/urfave/cli/v3"
@@ -177,9 +178,9 @@ func main() {
 			}
 			return "(with key [..." + setting.Key[len(setting.Key)-4:] + "])"
 		}(), setting.TerminalWidth),
-		UsageText:             justify.Justify(os.Args[0]+" [COMMAND] [OPTIONS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.", setting.TerminalWidth),
-		Version:               fmt.Sprint(versionInfo),
-		DefaultCommand:        "compress",
+		UsageText: justify.Justify(os.Args[0]+" [COMMAND] [OPTIONS] [INPUT FILE] [OUTPUT FILE]\nWith no INPUT FILE, or when INPUT FILE is -, read from standard input.", setting.TerminalWidth),
+		Version:   fmt.Sprint(versionInfo),
+		// DefaultCommand: "compress",
 		EnableShellCompletion: true,
 		Suggest:               true, // see https://cli.urfave.org/v3/examples/help/suggestions/
 		Metadata:              metadata,
@@ -223,16 +224,18 @@ func main() {
 				Aliases:   []string{"comp"},
 				Usage:     "compresses and optimises an image",
 				UsageText: justify.Justify("You can upload any image to the Tinify API to compress it. We will automatically detect the type of image ("+strings.Join(types, ", ")+") and optimise with the TinyPNG or TinyJPG engine accordingly.\nCompression will start as soon as you upload a file or provide the URL to the image.", setting.TerminalWidth),
-				Action:    compress,
-				Arguments: inputOutputFilenames,
+				//				Action:    compress,
+				Arguments:       inputOutputFilenames,
+				CommandNotFound: commandNotFoundHandler,
 			},
 			{
-				Name:      "resize",
-				Aliases:   []string{"r"},
-				Usage:     "resizes the image to a new size, using one of the possible methods",
-				UsageText: justify.Justify("Use the API to create resized versions of your uploaded images.\nBy letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.\nAvailable compression methods are: "+strings.Join(methods, ", "), setting.TerminalWidth),
-				Action:    resize,
-				Arguments: inputOutputFilenames,
+				Name:            "resize",
+				Aliases:         []string{"r"},
+				Usage:           "resizes the image to a new size, using one of the possible methods",
+				UsageText:       justify.Justify("Use the API to create resized versions of your uploaded images.\nBy letting the API handle resizing you avoid having to write such code yourself and you will only have to upload your image once. The resized images will be optimally compressed with a nice and crisp appearance.\nYou can also take advantage of intelligent cropping to create thumbnails that focus on the most visually important areas of your image.\nResizing counts as one additional compression. For example, if you upload a single image and retrieve the optimized version plus 2 resized versions this will count as 3 compressions in total.\nAvailable compression methods are: "+strings.Join(methods, ", "), setting.TerminalWidth),
+				Action:          resize,
+				Arguments:       inputOutputFilenames,
+				CommandNotFound: commandNotFoundHandler,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "method",
@@ -281,12 +284,13 @@ func main() {
 				},
 			},
 			{
-				Name:      "convert",
-				Aliases:   []string{"conv"},
-				Usage:     "converts from one file type to another (" + strings.Join(types, ", ") + " supported)",
-				UsageText: justify.Justify("You can use the API to convert your images to your desired image type.\nTinify currently supports converting between: "+strings.Join(types, ", ")+".\nWhen you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.", setting.TerminalWidth),
-				Action:    convert,
-				Arguments: inputOutputFilenames,
+				Name:            "convert",
+				Aliases:         []string{"conv"},
+				Usage:           "converts from one file type to another (" + strings.Join(types, ", ") + " supported)",
+				UsageText:       justify.Justify("You can use the API to convert your images to your desired image type.\nTinify currently supports converting between: "+strings.Join(types, ", ")+".\nWhen you provide more than on image type in your convert request, the smallest version will be returned to you.\nImage converting will count as one additional compression.", setting.TerminalWidth),
+				Action:          convert,
+				Arguments:       inputOutputFilenames,
+				CommandNotFound: commandNotFoundHandler,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "type",
@@ -320,12 +324,13 @@ func main() {
 				},
 			},
 			{
-				Name:      "transform",
-				Aliases:   []string{"tr"},
-				Usage:     "processes image further (currently only replaces the background with a solid colour)",
-				UsageText: justify.Justify("If you wish to convert an image with a transparent background to one with a solid background, specify a background property in the transform object.\nIf this property is provided, the background of a transparent image will be filled (only \"white\", \"black\", or a hex value are allowed).", setting.TerminalWidth),
-				Action:    transform,
-				Arguments: inputOutputFilenames,
+				Name:            "transform",
+				Aliases:         []string{"tr"},
+				Usage:           "processes image further (currently only replaces the background with a solid colour)",
+				UsageText:       justify.Justify("If you wish to convert an image with a transparent background to one with a solid background, specify a background property in the transform object.\nIf this property is provided, the background of a transparent image will be filled (only \"white\", \"black\", or a hex value are allowed).", setting.TerminalWidth),
+				Action:          transform,
+				Arguments:       inputOutputFilenames,
+				CommandNotFound: commandNotFoundHandler,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "background",
@@ -358,11 +363,11 @@ func main() {
 					return nil
 				},
 			},
+			{
+				CommandNotFound: commandNotFoundHandler,
+			},
 		},
-		CommandNotFound: func(ctx context.Context, cmd *cli.Command, command string) {
-			// because 'compress' is used by default, this should never be called
-			cli.Exit(fmt.Sprintf("Command %q not found.\nUsage: %s", command, cmd.UsageText), 22)
-		},
+		CommandNotFound: commandNotFoundHandler,
 		OnUsageError: func(ctx context.Context, cmd *cli.Command, err error, isSubcommand bool) error {
 			if isSubcommand {
 				return err
@@ -656,15 +661,7 @@ func compress(ctx context.Context, cmd *cli.Command) error {
 		err    error // declared here due to scope issues.
 		source *Tinify.Source
 	)
-	// Was this called as the default (i.e. empty) command? If so, adjust for 1 or 2 arguments.
-	/*	if cmd.Args().Len() > 1 && os.Args[1] != "compress" && fs.ValidPath(os.Args[1]) {
-			setting.Logger.Trace().Msgf("compress called by default, command was omitted; extracting filename(s) directly from arguments: %#v", os.Args)
-			setting.ImageName = os.Args[1]
-			if len(os.Args) > 2 && fs.ValidPath(os.Args[2]) {
-				setting.OutputFileName = os.Args[2]
-			}
-		}
-	*/
+
 	setting.Logger.Debug().Msgf("compress called for %q -> %q", setting.ImageName, setting.OutputFileName)
 
 	if ctx, source, err = openStream(ctx); err != nil {
@@ -700,6 +697,66 @@ func transform(ctx context.Context, cmd *cli.Command) error {
 }
 
 // Aux functions
+
+// A handler for a command not found. Will try to extract correct parameters from the argument list and
+// check if there is a command similarly named or not. The case of the empty command is also handled.
+func commandNotFoundHandler(ctx context.Context, cmd *cli.Command, command string) {
+	setting.Logger.Trace().Msgf("Command not found handler called with command: %q, # of args: %d, arguments: %#v", command, cmd.Args().Len(), cmd.Args())
+	// Was this called as the default (i.e. empty) command? If so, adjust for 1 or 2 arguments.
+	if cmd.Args().Len() > 0 && fs.ValidPath(cmd.Args().First()) {
+		setting.Logger.Trace().Msgf("compress called by default, command was omitted; extracting filename(s) directly from arguments: %#v", cmd.Args())
+		setting.ImageName = cmd.Args().First()
+		if cmd.Args().Len() > 1 && fs.ValidPath(cmd.Args().Get(1)) {
+			setting.OutputFileName = cmd.Args().Get(1)
+		}
+		if err := compress(ctx, cmd); err != nil {
+			cli.Exit(fmt.Sprintf("Could not compress %q to %q; error was: %s\nUsage: %s",
+				setting.ImageName, setting.OutputFileName, err, cmd.UsageText), 22)
+		}
+	}
+	setting.Logger.Trace().Msgf("Attempting to get the best possible match for command %q", command)
+	// Now test for typos!
+	var bestSoFar, secondBestSoFar string
+	for i, oneCommand := range cmd.Names() {
+		dlDist := edlib.DamerauLevenshteinDistance(command, oneCommand)
+		switch {
+		case dlDist < 2:
+			secondBestSoFar = oneCommand
+			setting.Logger.Trace().Msgf("%d - Second best match to given command %q so far: %q",
+				i, command, oneCommand)
+			fallthrough
+		case dlDist < 1:
+			setting.Logger.Trace().Msgf("%d - Best match to given command %q so far: %q",
+				i, command, oneCommand)
+			bestSoFar = oneCommand
+		}
+	}
+	setting.Logger.Trace().Msgf("Final Damerau-Levenshtein selection: #1: %q, #2: %q", bestSoFar, secondBestSoFar)
+	if bestSoFar == "" && secondBestSoFar == "" {
+		cli.Exit(fmt.Sprintf("Command %q not found.\nUsage: %s", command, cmd.UsageText), 22)
+	}
+	if bestSoFar == "" {
+		// Good, but not good enough: exit, but telling the user what the most likely command was:
+		cli.Exit(fmt.Sprintf("Command %q not found. Did you mean %q?\nUsage: %s", command, secondBestSoFar, cmd.UsageText), 22)
+	}
+	// almost perfect match, so it's highly likely the following was meant:
+	var cliError error
+	switch bestSoFar {
+	case "compress":
+		cliError = compress(ctx, cmd)
+	case "convert":
+		cliError = convert(ctx, cmd)
+	case "resize":
+		cliError = resize(ctx, cmd)
+	case "transform":
+		cliError = transform(ctx, cmd)
+	}
+	if cliError != nil {
+		cli.Exit(fmt.Sprintf("Error processing command %q\nUsage: %s", bestSoFar, cmd.UsageText), 22)
+	}
+	// if we reach this point, something did really go south!
+
+}
 
 // setLogLevel is just a macro-style thing to force the logging level to be set.
 func setLogLevel() error {
