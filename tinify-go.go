@@ -8,8 +8,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+
 	//	"io/fs"
-	"net/http"
+	// "net/http"
 	"net/mail"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/GwynethLlewelyn/justify"
+	"github.com/gabriel-vasile/mimetype"
 	Tinify "github.com/gwpp/tinify-go/tinify"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/rs/zerolog"
@@ -493,10 +495,12 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 			return ctx, nil, err
 		}
 		// check canonical mime type:
-		mimeType := http.DetectContentType(rawImage)
+		// mimeType := http.DetectContentType(rawImage)
 		// Valid Media Types according to IANA (se https://www.iana.org/assignments/media-types/media-types.xhtml#image)
+		mimeType := mimetype.Detect(rawImage)
+
 		switch mimeType {
-		case "image/png", "image/apng", "image/vnd.mozilla.apng", "image/vnd.sealed.png", "image/jpeg", "image/webp", "image/avif":
+		case "image/png", "image/apng", "image/vnd.mozilla.apng", "image/vnd.sealed.png", "image/jpeg", "image/webp", "image/avif", "image/heic":
 			setting.Logger.Trace().Msgf("openStream: setting Media Type to (valid) %q", mimeType)
 		default:
 			return ctx, nil, fmt.Errorf("openStream: invalid or not recognised Media Type %q, aborting", mimeType)
