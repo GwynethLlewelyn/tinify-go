@@ -124,7 +124,13 @@ Remember that you need your `TINIFY_API_KEY`.
 To override the logging level, you can either use `--debug`, or even catch some initialisation errors if you set 
 `TINIFY_API_DEBUG` to, say, `trace`.
 
-Without arguments, `tinify-go` will read from standard input and write to standard output (with error messages going to standard error). This, however, is designed for automation — if `tinify-go` detects that it is attached to a console (TTY), it will refuse to read from standard input — you *must* supply a file (or an URL for a file) instead. This is deliberate, to avoid typing endless characters in an attempt to "do something", pressing <kbd>Ctrl-D</kbd> by mistake, and sending garbage to the Tinify API endpoint — wasting resources and *possibly* even consuming one of your tokens! 
+Without arguments, `tinify-go` will read from standard input and write to standard output (with error messages going to standard error). This, however, is designed for automation — if `tinify-go` detects that it is attached to a console (TTY), it will refuse to read from standard input — you *must* supply a file (or an URL for a file) instead. This is deliberate, to avoid typing endless characters in an attempt to "do something", pressing <kbd>Ctrl-D</kbd> by mistake, and sending garbage to the Tinify API endpoint — wasting resources and *possibly* even consuming one of your tokens!
+
+## Recognised formats
+
+As of late December 2025,TinyPNG seems to recognise as valid input formats JPEG, PNG (a few variants, including Animated PNG), WebP, AVIF, and HEIC, and can write to all of them during conversion (except for HEIC).
+
+Via the Tinify API (even with the free version!), you're allowed to upload images over the 5 MB limit (but by how much more isn't known).
 
 ## License
 

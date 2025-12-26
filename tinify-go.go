@@ -497,7 +497,7 @@ func openStream(ctx context.Context) (context.Context, *Tinify.Source, error) {
 		// check canonical mime type:
 		// mimeType := http.DetectContentType(rawImage)
 		// Valid Media Types according to IANA (se https://www.iana.org/assignments/media-types/media-types.xhtml#image)
-		mimeType := mimetype.Detect(rawImage)
+		mimeType := mimetype.Detect(rawImage).String()
 
 		switch mimeType {
 		case "image/png", "image/apng", "image/vnd.mozilla.apng", "image/vnd.sealed.png", "image/jpeg", "image/webp", "image/avif", "image/heic":
